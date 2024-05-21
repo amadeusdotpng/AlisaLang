@@ -9,7 +9,7 @@ const EOF_CHAR: char = '\0';
 
 impl<'a> Lexer<'a> {
     pub fn new(input: &'a str) -> Lexer<'a> {
-        Lexer { 
+        Lexer {
             length_remaining: input.len(),
             chars: input.chars(),
         }
@@ -18,7 +18,7 @@ impl<'a> Lexer<'a> {
     pub fn peek_first(&mut self) -> char {
         self.chars.clone().next().unwrap_or(EOF_CHAR)
     }
-    
+
     pub fn peek_second(&mut self) -> char {
         let mut iter = self.chars.clone();
         iter.next();

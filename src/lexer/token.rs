@@ -2,10 +2,10 @@
 pub enum TokenKind {
     Identifier,
 
-    Literal {kind: LiteralKind},
+    Literal { kind: LiteralKind },
 
     // see is_whitespace() in mod.rs
-    Whitespace, 
+    Whitespace,
 
     // `;`
     Semi,
@@ -52,7 +52,7 @@ pub enum TokenKind {
     Unknown,
 
     // End of Input
-    EOF
+    EOF,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -61,9 +61,9 @@ pub enum LiteralKind {
 
     Float,
 
-    Str {terminated: bool},
-    
-    Char {terminated: bool},
+    Str { terminated: bool },
+
+    Char { terminated: bool },
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

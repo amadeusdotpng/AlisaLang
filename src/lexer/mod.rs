@@ -4,10 +4,10 @@ pub mod lex;
 pub mod token;
 
 use lex::Lexer;
-use token::{LiteralKind, TokenKind, Token};
+use token::{LiteralKind, Token, TokenKind};
 
 // Most of this is straight out of the rust compiler.
-pub fn is_whitespace(c: char) -> bool { 
+pub fn is_whitespace(c: char) -> bool {
     matches!(
         c,
         // Usual ASCII suspects
@@ -43,7 +43,7 @@ impl<'a> Lexer<'a> {
     pub fn next_token(&mut self) -> Token {
         let c = match self.take() {
             Some(c) => c,
-            None => return Token::new(TokenKind::EOF, 0)
+            None => return Token::new(TokenKind::EOF, 0),
         };
         let kind = match c {
             // Skips through whitespace.
@@ -54,12 +54,13 @@ impl<'a> Lexer<'a> {
 
             // Dot or Float Literal
             '.' => {
-
                 // If the next thing is a number, it's a float for sure.
                 if self.peek_first().is_ascii_digit() {
                     // Keep taking until end of float.
                     self.take_while(is_digit);
-                    TokenKind::Literal { kind: LiteralKind::Float }
+                    TokenKind::Literal {
+                        kind: LiteralKind::Float,
+                    }
                 } else {
                     TokenKind::Dot
                 }
@@ -75,27 +76,30 @@ impl<'a> Lexer<'a> {
                     // Skip the dot.
                     self.take();
                     self.take_while(is_digit);
-                    TokenKind::Literal { kind: LiteralKind::Float }
+                    TokenKind::Literal {
+                        kind: LiteralKind::Float,
+                    }
                 // If there's no dot at all, it's just an int for sure.
                 } else {
-                    TokenKind::Literal { kind: LiteralKind::Int }
+                    TokenKind::Literal {
+                        kind: LiteralKind::Int,
+                    }
                 }
             }
 
             // String Literal
             '"' => {
                 let terminated = self.literal_string();
-                let litkind = LiteralKind::Str{ terminated };
-                TokenKind::Literal{ kind: litkind }
+                let litkind = LiteralKind::Str { terminated };
+                TokenKind::Literal { kind: litkind }
             }
 
             // Single Character Literal
             '\'' => {
                 let terminated = self.literal_char();
                 let litkind = LiteralKind::Char { terminated };
-                TokenKind::Literal{ kind: litkind }
+                TokenKind::Literal { kind: litkind }
             }
-
 
             // Single Character Tokens
             ';' => TokenKind::Semi,
@@ -117,7 +121,7 @@ impl<'a> Lexer<'a> {
             '=' => TokenKind::Eq,
             '<' => TokenKind::Lt,
             '>' => TokenKind::Gt,
-             _  => TokenKind::Unknown,
+            _ => TokenKind::Unknown,
         };
         return Token::new(kind, 0);
     }
@@ -155,11 +159,13 @@ impl<'a> Lexer<'a> {
 
             Some(c) => {
                 // Skip char after escape character if it's an escape sequence.
-                if c == '\\' { self.take(); }
-                if self.peek_first() == '\'' { 
+                if c == '\\' {
+                    self.take();
+                }
+                if self.peek_first() == '\'' {
                     // skip "'"
                     self.take();
-                    return true
+                    return true;
                 }
             }
         }

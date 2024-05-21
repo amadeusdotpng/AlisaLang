@@ -1,5 +1,4 @@
 mod lexer;
-use lexer::{token::TokenKind, lex::Lexer};
+use lexer::{lex::Lexer, token::TokenKind};
 
-fn main() {
-}
+fn main() {}

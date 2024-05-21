@@ -8,7 +8,6 @@ fn check(s: &str, expected: TokenKind) {
 }
 #[test]
 fn single_character_tokens() {
-
     check(">", TokenKind::Gt);
     check("<", TokenKind::Lt);
     check("=", TokenKind::Eq);
@@ -33,27 +32,87 @@ fn single_character_tokens() {
 
 #[test]
 fn character_literal_tokens() {
-    check("'a'", TokenKind::Literal { kind: LiteralKind::Char { terminated: true} });
+    check(
+        "'a'",
+        TokenKind::Literal {
+            kind: LiteralKind::Char { terminated: true },
+        },
+    );
     // Unterminated character literals.
-    check("''", TokenKind::Literal { kind: LiteralKind::Char { terminated: false} });
-    check("'a", TokenKind::Literal { kind: LiteralKind::Char { terminated: false} });
-    check("'", TokenKind::Literal { kind: LiteralKind::Char { terminated: false} });
+    check(
+        "''",
+        TokenKind::Literal {
+            kind: LiteralKind::Char { terminated: false },
+        },
+    );
+    check(
+        "'a",
+        TokenKind::Literal {
+            kind: LiteralKind::Char { terminated: false },
+        },
+    );
+    check(
+        "'",
+        TokenKind::Literal {
+            kind: LiteralKind::Char { terminated: false },
+        },
+    );
 }
 
 #[test]
 fn string_literal_tokens() {
-    check("\"foobar\"", TokenKind::Literal { kind: LiteralKind::Str { terminated: true} });
-    check("\"\"", TokenKind::Literal { kind: LiteralKind::Str { terminated: true} });
+    check(
+        "\"foobar\"",
+        TokenKind::Literal {
+            kind: LiteralKind::Str { terminated: true },
+        },
+    );
+    check(
+        "\"\"",
+        TokenKind::Literal {
+            kind: LiteralKind::Str { terminated: true },
+        },
+    );
     // Unterminated strings
-    check("\"foobar", TokenKind::Literal { kind: LiteralKind::Str { terminated: false} });
-    check("\"", TokenKind::Literal { kind: LiteralKind::Str { terminated: false} });
+    check(
+        "\"foobar",
+        TokenKind::Literal {
+            kind: LiteralKind::Str { terminated: false },
+        },
+    );
+    check(
+        "\"",
+        TokenKind::Literal {
+            kind: LiteralKind::Str { terminated: false },
+        },
+    );
 }
 
 #[test]
 fn number_literal_tokens() {
-    check("1234", TokenKind::Literal { kind: LiteralKind::Int });
+    check(
+        "1234",
+        TokenKind::Literal {
+            kind: LiteralKind::Int,
+        },
+    );
 
-    check("1234.", TokenKind::Literal { kind: LiteralKind::Float });
-    check(".1234", TokenKind::Literal { kind: LiteralKind::Float });
-    check("12.34", TokenKind::Literal { kind: LiteralKind::Float });
+    check(
+        "1234.",
+        TokenKind::Literal {
+            kind: LiteralKind::Float,
+        },
+    );
+    check(
+        ".1234",
+        TokenKind::Literal {
+            kind: LiteralKind::Float,
+        },
+    );
+    check(
+        "12.34",
+        TokenKind::Literal {
+            kind: LiteralKind::Float,
+        },
+    );
 }
