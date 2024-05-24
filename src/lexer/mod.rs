@@ -43,7 +43,10 @@ impl<'a> Lexer<'a> {
     pub fn next_token(&mut self) -> Token {
         let c = match self.take() {
             Some(c) => c,
-            None => return Token::new(TokenKind::EOF, 0),
+            None => {
+                let (start, end) = self.get_pos();
+                return Token::new(TokenKind::EOF, start, end)
+            }
         };
         let kind = match c {
             // Skips through whitespace.
@@ -101,6 +104,39 @@ impl<'a> Lexer<'a> {
                 TokenKind::Literal { kind: litkind }
             }
 
+            // Potential Double Character Tokens
+            '|' => {
+                match self.peek_first() {
+                    '|' => { self.take(); TokenKind::BoolOr }
+                    _ => TokenKind::BitOr
+                }
+            }
+            '&' => {
+                match self.peek_first() {
+                    '&' => { self.take(); TokenKind::BoolAnd }
+                    _ => TokenKind::BitAnd
+                }
+            }
+            '=' => {
+                match self.peek_first() {
+                    '=' => { self.take(); TokenKind::Eq }
+                    _ => TokenKind::Assign
+                }
+            }
+            '<' => {
+                match self.peek_first() {
+                    '=' => { self.take(); TokenKind::Le }
+                    _ => TokenKind::Lt
+                }
+                
+            }
+            '>' => {
+                match self.peek_first() {
+                    '=' => { self.take(); TokenKind::Ge }
+                    _ => TokenKind::Gt
+                }
+            }
+
             // Single Character Tokens
             ';' => TokenKind::Semi,
             ':' => TokenKind::Colon,
@@ -109,21 +145,21 @@ impl<'a> Lexer<'a> {
             ')' => TokenKind::CloseParen,
             '{' => TokenKind::OpenBrace,
             '}' => TokenKind::CloseBrace,
-            '|' => TokenKind::Or,
-            '&' => TokenKind::And,
-            '^' => TokenKind::Caret,
-            '%' => TokenKind::Percent,
+
+            '^' => TokenKind::BitXor,
+
             '+' => TokenKind::Plus,
             '-' => TokenKind::Minus,
             '*' => TokenKind::Star,
             '/' => TokenKind::Slash,
-            '!' => TokenKind::Bang,
-            '=' => TokenKind::Eq,
-            '<' => TokenKind::Lt,
-            '>' => TokenKind::Gt,
+            '%' => TokenKind::Modulo,
+
+            '!' => TokenKind::BoolNot,
+
             _ => TokenKind::Unknown,
         };
-        let res = Token::new(kind, self.tok_length());
+        let (start, end) = self.get_pos();
+        let res = Token::new(kind, start, end);
         self.set_length();
         res
     }
