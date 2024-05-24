@@ -123,7 +123,9 @@ impl<'a> Lexer<'a> {
             '>' => TokenKind::Gt,
             _ => TokenKind::Unknown,
         };
-        return Token::new(kind, 0);
+        let res = Token::new(kind, self.tok_length());
+        self.set_length();
+        res
     }
 
     pub fn whitespace(&mut self) -> TokenKind {

@@ -33,7 +33,7 @@ impl<'a> Lexer<'a> {
         self.length_remaining - self.chars.as_str().len()
     }
 
-    pub fn set(&mut self) {
+    pub fn set_length(&mut self) {
         self.length_remaining = self.chars.as_str().len();
     }
 
