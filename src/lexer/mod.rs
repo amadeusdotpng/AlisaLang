@@ -160,7 +160,7 @@ impl<'a> Lexer<'a> {
         };
         let (start, end) = self.get_pos();
         let res = Token::new(kind, start, end);
-        self.set_length();
+        self.set_pos();
         res
     }
 

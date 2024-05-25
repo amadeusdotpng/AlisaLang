@@ -35,13 +35,11 @@ impl<'a> Lexer<'a> {
         (self.pos, self.pos + self.length_remaining - self.chars.as_str().len())
     }
 
-    pub fn set_length(&mut self) {
+    pub fn set_pos(&mut self) {
+        self.pos = self.pos + self.length_remaining - self.chars.as_str().len();
         self.length_remaining = self.chars.as_str().len();
     }
 
-    pub fn get_length(&mut self) -> usize {
-        self.chars.as_str().len()
-    }
 
     pub fn take(&mut self) -> Option<char> {
         self.chars.next()
