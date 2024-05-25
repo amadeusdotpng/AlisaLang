@@ -23,19 +23,14 @@ pub enum TokenKind {
     OpenBrace,
     // `}`
     CloseBrace,
-
-    // `=`
-    Assign,
-
     // `|`
-    BitOr,
+    Or,
     // `&`
-    BitAnd,
+    And,
     // `^`
-    BitXor,
-    // `~`
-    BitNot,
-
+    Caret,
+    // `%`
+    Percent,
     // `+`
     Plus,
     // `-`
@@ -44,22 +39,10 @@ pub enum TokenKind {
     Star,
     // `/`
     Slash,
-    // `%`
-    Modulo,
-
     // `!`
-    BoolNot,
-    // `&&`
-    BoolAnd,
-    // `||`
-    BoolOr,
-
-    // `==`
+    Bang,
+    // `=`
     Eq,
-    // `<=`
-    Le,
-    // `>=`
-    Ge,
     // `<`
     Lt,
     // `>`
@@ -86,12 +69,11 @@ pub enum LiteralKind {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Token {
     pub kind: TokenKind,
-    pub start: usize,
-    pub end: usize,
+    pub length: usize,
 }
 
 impl Token {
-    pub fn new(kind: TokenKind, start: usize, end: usize) -> Token {
-        Token { kind, start, end }
+    pub fn new(kind: TokenKind, length: usize) -> Token {
+        Token { kind, length }
     }
 }

@@ -2,7 +2,6 @@ use std::str::Chars;
 
 pub(crate) struct Lexer<'a> {
     length_remaining: usize,
-    pos: usize,
     chars: Chars<'a>,
 }
 
@@ -12,7 +11,6 @@ impl<'a> Lexer<'a> {
     pub fn new(input: &'a str) -> Lexer<'a> {
         Lexer {
             length_remaining: input.len(),
-            pos: 0,
             chars: input.chars(),
         }
     }
@@ -31,15 +29,13 @@ impl<'a> Lexer<'a> {
         self.chars.as_str().is_empty()
     }
 
-    pub fn get_pos(&mut self) -> (usize, usize) {
-        (self.pos, self.pos + self.length_remaining - self.chars.as_str().len())
+    pub fn tok_length(&mut self) -> usize {
+        self.length_remaining - self.chars.as_str().len()
     }
 
-    pub fn set_pos(&mut self) {
-        self.pos = self.pos + self.length_remaining - self.chars.as_str().len();
+    pub fn set_length(&mut self) {
         self.length_remaining = self.chars.as_str().len();
     }
-
 
     pub fn take(&mut self) -> Option<char> {
         self.chars.next()
