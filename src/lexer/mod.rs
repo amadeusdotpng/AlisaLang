@@ -1,10 +1,90 @@
 // TODO: Make lexer emit error messages
 
 pub mod lex;
-pub mod token;
 
 use lex::Lexer;
-use token::{LiteralKind, Token, TokenKind};
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TokenKind {
+    Identifier,
+
+    Literal { kind: LiteralKind },
+
+    // see is_whitespace() in mod.rs
+    Whitespace,
+
+    // `;`
+    Semi,
+    // `:`
+    Colon,
+    // `,`
+    Comma,
+    // `.`
+    Dot,
+    // `(`
+    OpenParen,
+    // `)`
+    CloseParen,
+    // `{`
+    OpenBrace,
+    // `}`
+    CloseBrace,
+    // `=`
+    Eq,
+    // `<`
+    Lt,
+    // `>`
+    Gt,
+    // `|`
+    Pipe,
+    // `&`
+    And,
+    // `^`
+    Caret,
+    // `+`
+    Plus,
+    // `-`
+    Minus,
+    // `*`
+    Star,
+    // `/`
+    Slash,
+    // `%`
+    Percent,
+    // `!`
+    Bang,
+    // `~`
+    Tilde,
+
+    // Any other token not recognized by the lexer.
+    Unknown,
+
+    // End of Input
+    EOF,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LiteralKind {
+    Int,
+
+    Float,
+
+    Str { terminated: bool },
+
+    Char { terminated: bool },
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Token {
+    pub kind: TokenKind,
+    pub length: usize,
+}
+
+impl Token {
+    pub fn new(kind: TokenKind, length: usize) -> Token {
+        Token { kind, length }
+    }
+}
 
 // Most of this is straight out of the rust compiler.
 pub fn is_whitespace(c: char) -> bool {
@@ -109,18 +189,19 @@ impl<'a> Lexer<'a> {
             ')' => TokenKind::CloseParen,
             '{' => TokenKind::OpenBrace,
             '}' => TokenKind::CloseBrace,
-            '|' => TokenKind::Or,
+            '=' => TokenKind::Eq,
+            '<' => TokenKind::Lt,
+            '>' => TokenKind::Gt,
+            '|' => TokenKind::Pipe,
             '&' => TokenKind::And,
             '^' => TokenKind::Caret,
-            '%' => TokenKind::Percent,
             '+' => TokenKind::Plus,
             '-' => TokenKind::Minus,
             '*' => TokenKind::Star,
             '/' => TokenKind::Slash,
+            '%' => TokenKind::Percent,
             '!' => TokenKind::Bang,
-            '=' => TokenKind::Eq,
-            '<' => TokenKind::Lt,
-            '>' => TokenKind::Gt,
+            '~' => TokenKind::Tilde,
             _ => TokenKind::Unknown,
         };
         let res = Token::new(kind, self.tok_length());

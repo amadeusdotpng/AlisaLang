@@ -6,28 +6,32 @@ fn check(s: &str, expected: TokenKind) {
     let mut lex = Lexer::new(s);
     assert_eq!(lex.next_token().kind, expected);
 }
+
 #[test]
 fn single_character_tokens() {
-    check(">", TokenKind::Gt);
-    check("<", TokenKind::Lt);
-    check("=", TokenKind::Eq);
-    check("!", TokenKind::Bang);
-    check("/", TokenKind::Slash);
-    check("*", TokenKind::Star);
-    check("-", TokenKind::Minus);
-    check("+", TokenKind::Plus);
-    check("%", TokenKind::Percent);
-    check("^", TokenKind::Caret);
-    check("&", TokenKind::And);
-    check("|", TokenKind::Or);
-    check("}", TokenKind::CloseBrace);
-    check("{", TokenKind::OpenBrace);
-    check(")", TokenKind::CloseParen);
-    check("(", TokenKind::OpenParen);
-    check(".", TokenKind::Dot);
-    check(",", TokenKind::Comma);
-    check(":", TokenKind::Colon);
     check(";", TokenKind::Semi);
+    check(":", TokenKind::Colon);
+    check(",", TokenKind::Comma);
+    check(".", TokenKind::Dot);
+    check("(", TokenKind::OpenParen);
+    check(")", TokenKind::CloseParen);
+    check("{", TokenKind::OpenBrace);
+    check("}", TokenKind::CloseBrace);
+    check("=", TokenKind::Eq);
+    check("<", TokenKind::Lt);
+    check(">", TokenKind::Gt);
+    check("|", TokenKind::Pipe);
+    check("&", TokenKind::And);
+    check("^", TokenKind::Caret);
+    check("+", TokenKind::Plus);
+    check("-", TokenKind::Minus);
+    check("*", TokenKind::Star);
+    check("/", TokenKind::Slash);
+    check("%", TokenKind::Percent);
+    check("!", TokenKind::Bang);
+    check("~", TokenKind::Tilde);
+    check("\\", TokenKind::Unknown);
+    check("", TokenKind::EOF);
 }
 
 #[test]
