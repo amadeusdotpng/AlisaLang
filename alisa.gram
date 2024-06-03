@@ -1,0 +1,131 @@
+program: statement* EOF
+
+statement:
+    | var_decl
+    | func_decl
+    | struct_decl
+    | enum_decl
+    | expression ';'
+
+expression:
+    | if_expression
+    | block_expression
+    | closure_expression
+    | operation_expression
+
+
+# Variable Declaration
+# --------------------
+var_decl: 'let' IDENTIFIER (':' type)? '=' expression ';'
+
+
+# Item Declarations
+# -----------------
+func_decl: 'fn' IDENTIFIER '(' params? ')' ('->' type)? block_expression
+
+struct_decl: 'struct' IDENTIFIER '{' params? '}'
+
+# FIXME: enums don't need params
+enum_decl: 'enum' IDENTIFIER '{' params? '}'
+
+params: param (',' param)* ','?
+
+param: IDENTIFIER ':' type
+
+
+# If Expression
+# -------------
+if_expression: 'if' expression block_expression else_expression?
+
+else_expression: 'else' (if_expression | block_expression)
+
+
+# Item Expressions
+# ----------------
+block_expression: '{' statement* expression? '}'
+
+closure_expression: '\' '(' params? ')' '->' type block_expression
+
+
+# Operation Expressions
+# ---------------------
+operation_expression:
+    | bit_or
+    | bool_or
+    | assignment
+
+
+# Assignment Expression
+# -----------------
+assignment:
+    | IDENTIFIER ('=' | '|=' | '&=' | '^=' | '~=' | '>>=' | '<<=' | '+=' | '-=' | '*=' | '%=') expression
+
+
+# Boolean Expression
+# ------------------
+bool_or: bool_and ('||' bool_and)*
+
+bool_and: bool_not ('&&' bool_not)*
+
+bool_not:
+    | '!' bool_not
+    | comparison
+
+comparison: expression (('==' | '!=' | '>=' | '<=' | '<' | '>') expression)?
+
+
+# Bitwise Expressions and Arithmetic
+# ----------------------------------
+
+bit_or: bit_xor ('|' bit_xor)*
+
+bit_xor: bit_and ('^' bit_and)*
+
+bit_and: bit_shift ('&' bit_shift)*
+
+bit_shift: sum (('>>' | '<<') sum)*
+
+sum: term (('+' | '-') term)*
+
+term: factor (('*' | '/') factor)*
+
+factor:
+    | ('-' | '+' | '~') factor
+    | primary
+
+primary:
+    | '(' expression ')'
+    | block_expression
+    | literal
+    | IDENTIFIER
+
+literal:
+    | tuple
+    | list
+    | boolean
+    | STR
+    | CHAR
+    | INT
+    | FLOAT
+
+boolean: 'true' | 'false'
+
+tuple: '(' (expression ',')+ expression? ')'
+
+list: '[' expression (',' expression)* ','? ']'
+
+
+# Types
+# -----
+type: primitive | user_defined
+
+# we implement these guys in the core lib so that primitive types aren't reserved keywords or something idk
+primitive:
+    | 'u8' | 'u16' | 'u32' | 'u64' | 'u128' # Unsigned Integer
+    | 'i8' | 'i16' | 'i32' | 'i64' | 'i128' # Signed Integer
+    | 'f32' | 'f64'                         # Floating Point Number
+    | 'bool'                                # Boolean
+    | 'char' | 'str'                        # Characters and String
+
+# we check if the given user defined is an actual type they've defined
+user_defined: IDENTIFIER

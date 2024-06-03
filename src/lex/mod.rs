@@ -1,8 +1,8 @@
 // TODO: Make lexer emit error messages
 
-pub mod lex;
+pub mod lexer;
 
-use lex::Lexer;
+use lexer::Lexer;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum TokenKind {
@@ -29,6 +29,8 @@ pub enum TokenKind {
     OpenBrace,
     // `}`
     CloseBrace,
+    // `\`
+    BSlash,
     // `=`
     Eq,
     // `<`
@@ -48,7 +50,7 @@ pub enum TokenKind {
     // `*`
     Star,
     // `/`
-    Slash,
+    FSlash,
     // `%`
     Percent,
     // `!`
@@ -198,7 +200,8 @@ impl<'a> Lexer<'a> {
             '+' => TokenKind::Plus,
             '-' => TokenKind::Minus,
             '*' => TokenKind::Star,
-            '/' => TokenKind::Slash,
+            '/' => TokenKind::FSlash,
+            '\\' => TokenKind::BSlash,
             '%' => TokenKind::Percent,
             '!' => TokenKind::Bang,
             '~' => TokenKind::Tilde,

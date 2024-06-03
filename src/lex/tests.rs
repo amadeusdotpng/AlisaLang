@@ -17,6 +17,7 @@ fn single_character_tokens() {
     check(")", TokenKind::CloseParen);
     check("{", TokenKind::OpenBrace);
     check("}", TokenKind::CloseBrace);
+    check("\\", TokenKind::BSlash);
     check("=", TokenKind::Eq);
     check("<", TokenKind::Lt);
     check(">", TokenKind::Gt);
@@ -26,7 +27,7 @@ fn single_character_tokens() {
     check("+", TokenKind::Plus);
     check("-", TokenKind::Minus);
     check("*", TokenKind::Star);
-    check("/", TokenKind::Slash);
+    check("/", TokenKind::FSlash);
     check("%", TokenKind::Percent);
     check("!", TokenKind::Bang);
     check("~", TokenKind::Tilde);
