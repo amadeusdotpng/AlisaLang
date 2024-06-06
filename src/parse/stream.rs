@@ -77,14 +77,17 @@ impl<'a> StringReader<'a> {
     fn take(&mut self) -> ast::Token {
         loop {
             let lex_token = match self.reserved_lex_token {
-                Some(tok) => tok,
+                Some(tok) => {
+                    self.reserved_lex_token = None;
+                    tok
+                },
                 None => self.lex.next_token(),
             };
             let start = self.pos;
             self.pos += lex_token.length;
 
             let kind = match lex_token.kind {
-                lex::TokenKind::Whitespace => { self.reserved_lex_token = None; continue }
+                lex::TokenKind::Whitespace => continue,
 
                 lex::TokenKind::Identifier => self.identifier_or_other(start, lex_token.length),
 
