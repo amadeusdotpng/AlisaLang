@@ -1,10 +1,17 @@
 use crate::lex;
 
-pub mod nodes;
-use nodes::*;
+pub mod node;
+use node::*;
 
+#[derive(Debug)]
 pub struct ASTree {
     root: Vec<Statement>
+}
+
+impl ASTree {
+    pub fn new(root: Vec<Statement>) -> Self {
+        Self { root }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -44,6 +51,10 @@ pub enum TokenKind {
     OpenBrace,
     // `}`
     CloseBrace,
+    // `[`
+    OpenBracket,
+    // `]`
+    CloseBracket,
     // `\`
     BSlash,
 

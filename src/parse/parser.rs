@@ -1,78 +1,82 @@
-use std::collections::VecDeque;
+use crate::parse::stream::TokenStream;
+use crate::ast::{Token, TokenKind};
 
-use crate::parse::{Token, TokenKind, stream::TokenStream};
-
-pub(crate) struct Parser<'a> {
-    stream: TokenStream<'a>,
-    lookahead: VecDeque<Token>,
-    // lookahead: Option<Token>,
+pub(crate) struct Parser<'src> {
+    pub stream: TokenStream,
+    pub src: &'src str,
+    token: Token,
 }
 
-impl<'a> Parser<'a> {
-    pub(super) fn new(input: &'a str) -> Parser {
-        Parser { 
-            stream: TokenStream::new(input),
-            lookahead: VecDeque::new(),
+impl<'src> Parser<'src> {
+    pub(super) fn new(input: &'src str) -> Parser {
+        let mut stream = TokenStream::new(input);
+        let tok = stream.next_token();
+        Self { 
+            stream,
+            src: input,
+            token: tok,
         }
     }
 
-    pub(super) fn next(&mut self) -> Token {
-        match self.lookahead.pop_front() {
-            Some(token) => token,
-            None => self.stream.next_token()
-        }
+    // Advances the token stream and returns the current token.
+    pub(super) fn take(&mut self) -> Token {
+        let tok = self.token;
+        self.token = self.stream.next_token();
+        tok
     }
 
-    pub(super) fn peek(&mut self) -> Token {
-        match self.lookahead.front() {
-            Some(token) => *token,
-            None => {
-                let token = self.stream.next_token();
-                self.lookahead.push_back(token);
-                token
-            }
-        }
+    // Advances the token stream without returning anything.
+    pub(super) fn bump(&mut self) {
+        self.token = self.stream.next_token();
     }
 
-    pub(super) fn expect(&mut self, kind: TokenKind) -> Option<Token> {
-        if self.peek().kind == kind {
-            Some(self.next())
-        } else { 
-            None
-        }
+    // Checks whether the current token matches `tok`.
+    pub(super) fn check(&self, tok: TokenKind) -> bool {
+        self.token.kind == tok
     }
 
-    pub(super) fn peek_n(&mut self, n: usize) -> Vec<Token> {
-        let mut tokens = Vec::with_capacity(n);
-        for i in 0..n {
-            let token = match self.lookahead.get(i) {
-                Some(&token) => token,
-                None => {
-                    let token = self.stream.next_token();
-                    self.lookahead.push_back(token);
-                    token
-                }
-            };
-            tokens.push(token)
+    // Advances the token stream and returns the current token if the next token matches `tok`.
+    pub(super) fn take_check(&mut self, tok: TokenKind) -> Option<Token> {
+        if self.check(tok) {
+            return Some(self.take());
         }
-        tokens
+        None
     }
 
-    pub(super) fn expect_n(&mut self, kinds: &[TokenKind]) -> Option<Vec<Token>> {
-        let n = kinds.len();
-        let mut tokens = Vec::with_capacity(n);
-        for (tok, &kind) in self.peek_n(n).into_iter().zip(kinds.iter()) {
-            if tok.kind != kind {
-                return None
-            }
+    // Advances the token stream and returns if the next token matches `tok`.
+    pub(super) fn bump_check(&mut self, tok: TokenKind) -> bool {
+        if self.check(tok) {
+            self.bump();
+            return true;
         }
-
-        // Since it's over, we can go ahead and iterate over these guys that we've peeked since we
-        // know that it's all good.
-        for _ in 0..n { 
-            tokens.push(self.next());
-        }
-
-        Some(tokens)
+        false
     }
+
+    /*
+    pub(super) fn bump_check_n(&mut self, tok: &[TokenKind]) -> bool {
+        false
+    }
+    */
+
+    // Peeks `dist` tokens ahead. If dist is zero, we just return the current token we're storing.
+    pub(super) fn peek(&mut self, dist: usize) -> Token {
+        if dist == 0 {
+            return self.token
+        }
+
+        let mark = self.stream.mark();
+        for _ in 0..(dist-1) {
+            self.bump();
+        }
+
+        let tok = self.take();
+        self.stream.reset(mark);
+        tok
+    }
+
+    /*
+    pub(super) fn expect_n(&'a mut self, kinds: &[TokenKind]) -> Option<Vec<Token>> {
+        todo!()
+    }
+    */
 }

@@ -1,8 +1,9 @@
 use std::str::Chars;
 
+#[derive(Clone, Debug)]
 pub(crate) struct Lexer<'a> {
     length_remaining: usize,
-    chars: Chars<'a>,
+    pub chars: Chars<'a>,
 }
 
 const EOF_CHAR: char = '\0';

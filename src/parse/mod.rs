@@ -1,174 +1,433 @@
 pub mod parser;
 pub mod stream;
-pub mod nonterminal;
 
 use parser::Parser;
-use nonterminal::Nonterminal;
+use crate::ast::TokenKind;
+use crate::ast::node::{Statement, Expression};
+use crate::ast::node::{Parameter, Type, IntKind, FloatKind, TupleType};
+use crate::ast::node::{FunctionStatement, StructStatement, EnumStatement, LetStatement};
+use crate::ast::node::{ClosureExpression, CallExpression, BlockExpression, IfExpression};
+use crate::ast::ASTree;
 
-use crate::ast::*;
-// Implement general parse function ?
-// I will have to either change Nonterminal to Rule and add a "Terminal" variant that holds a
-// token, or make a new enum Rule that has the variants Nonterminal and Terminal which respectively
-// holds a Nonterminal and a TokenKind.
+pub enum Nt {
+    Statement,
+    Expression,
+    
+    Function,
+    Struct,
+    Enum,
+    Let,
+
+    Closure,
+    Block,
+    If,
+}
+
 impl<'src> Parser<'src> {
-    fn assign_or_id(&mut self) -> bool {
-        todo!()
+
+    fn parse_statement(&mut self) -> Option<Statement> {
+        match self.peek(0).kind {
+            TokenKind::Fn => {
+                match self.parse_function() {
+                    Some(item) => Some(Statement::Function(item)),
+                    None => None,
+                }
+            }
+            TokenKind::Struct => {
+                match self.parse_struct() {
+                    Some(item) => Some(Statement::Struct(item)),
+                    None => None,
+                }
+            }
+            TokenKind::Enum => {
+                match self.parse_enum() {
+                    Some(item) => Some(Statement::Enum(item)),
+                    None => None,
+                }
+            }
+            TokenKind::Let => {
+                match self.parse_let() {
+                    Some(item) => Some(Statement::Let(item)),
+                    None => None
+                }
+            }
+
+            _ => None
+            /*
+            _ => {
+                match self.parse_expr() {
+                    Some(expr) => {
+                        // TODO: add actual error reporting.
+                        if !self.bump_check(TokenKind::Semi) {
+                            println!("ERROR: missing semicolon at {}", self.stream.pos)
+                        }
+                        Some(Statement::Expression(expr))
+                    }
+                    None => None
+                }
+            }
+            */
+        }
     }
 
-    fn tuple_or_expr(&mut self) -> bool {
-        todo!()
-    }
+    fn parse_function(&mut self) -> Option<FunctionStatement> {
+        self.bump();
+        if let Some(token) = self.take_check(TokenKind::Identifier) {
 
-    fn parse_nt(&mut self, nt: Nonterminal) -> bool {
-        match nt {
-            Nonterminal::Program => {
-                loop { 
-                    // Keep parsing statements
-                    if !self.parse_nt(Nonterminal::Statement) { break }
+            // TODO: add actual error reporting.
+            if !self.bump_check(TokenKind::OpenParen) {
+                println!("ERROR: expected `(` in function declaration");
+            }
+
+            let arguments = match self.parse_params() {
+                Some(args) => args,
+                None => return None,
+            };
+
+            // TODO: add actual error reporting.
+            if !self.bump_check(TokenKind::CloseParen) {
+                println!("ERROR: expected `)` in function declaration");
+            }
+
+            // TODO: add actual error reporting.
+            if !self.bump_check(TokenKind::RArrow) {
+                println!("ERROR: expected `->` in function declaration");
+                return None;
+            }
+    
+            let return_type = match self.parse_type() {
+                Some(return_type) => return_type,
+                None => {
+                    // TODO: add actual error reporting.
+                    println!("ERROR: expected a return type");
+                    return None;
                 }
-                
-                // If it can no longer parse statements, it should be the end of the file.
-                let res = self.expect(TokenKind::EOF).is_some();
-                res
+            };
+
+            if let Some(block) = self.parse_block() {
+                let (s, e) = (token.start, token.end);
+                let name = String::from(&self.src[s..e]);
+
+                return Some(FunctionStatement { name, return_type, arguments, block });
             }
-
-            Nonterminal::Statement => {
-                self.parse_nt(Nonterminal::VarDecl) ||
-                self.parse_nt(Nonterminal::FuncDecl) ||
-                self.parse_nt(Nonterminal::StructDecl) ||
-                self.parse_nt(Nonterminal::EnumDecl) ||
-               (self.parse_nt(Nonterminal::Expression) && self.expect(TokenKind::Semi).is_some())
-            }
-
-            Nonterminal::Expression => {
-                // Assignment Expression or Lonesome Identifier
-                if self.expect(TokenKind::Identifier).is_some() {
-                    return self.assign_or_id();
-                }
-
-                // Tuple or Parenthesized Expression
-                if self.expect(TokenKind::OpenParen).is_some() {
-                    return self.tuple_or_expr();
-                }
-
-                self.parse_nt(Nonterminal::IfExpression) ||
-                self.parse_nt(Nonterminal::BlockExpression) ||
-                self.parse_nt(Nonterminal::ClosureExpression) ||
-                self.parse_nt(Nonterminal::OperationExpression)
-            }
-
-            Nonterminal::Params => {
-                // CAHNGE TO TYPE
-                let param_rules = [TokenKind::Identifier, TokenKind::Colon, TokenKind::Identifier];
-                if self.expect_n(&param_rules).is_some() {
-                    let with_comma = [
-                        TokenKind::Comma,
-                        TokenKind::Identifier,
-                        TokenKind::Colon,
-                        TokenKind::Identifier
-                    ];
-
-                    loop { if !self.expect_n(&with_comma).is_some() { break } }
-
-                    // OPTIONAL
-                    self.expect(TokenKind::Comma);
-                    return true;
-                }
-                false
-            }
-
-            Nonterminal::BlockExpression => {
-                if self.expect(TokenKind::OpenBrace).is_some() {
-                    loop { if !self.parse_nt(Nonterminal::Statement) { break } };
-                    self.parse_nt(Nonterminal::Expression); // OPTIONAL
-                    return self.expect(TokenKind::CloseBrace).is_some();
-                }
-                false
-            }
-
-            Nonterminal::VarDecl => {
-                //CHANGE TO TYPE
-                let rules = &[TokenKind::Let, TokenKind::Identifier, TokenKind::Colon, TokenKind::Identifier]; 
-                self.expect_n(rules).is_some() && 
-                self.parse_nt(Nonterminal::Expression) &&
-                self.expect(TokenKind::Semi).is_some()
-            }
-
-            Nonterminal::FuncDecl => {
-                let open_rules = [TokenKind::Fn, TokenKind::Identifier, TokenKind::OpenParen];
-                if self.expect_n(&open_rules).is_some() {
-                    // OPTIONAL
-                    self.parse_nt(Nonterminal::Params);
-
-                    // CHANGE TO TYPE
-                    let close_rules = [TokenKind::CloseParen, TokenKind::RArrow, TokenKind::Identifier]; 
-                    return self.expect_n(&close_rules).is_some() &&
-                           self.parse_nt(Nonterminal::BlockExpression);
-                }
-                false
-            }
-
-            Nonterminal::StructDecl => {
-                let open_rules = [TokenKind::Struct, TokenKind::Identifier, TokenKind::OpenBrace];
-                if self.expect_n(&open_rules).is_some() {
-                    self.parse_nt(Nonterminal::Params); // OPTIONAL
-                    return self.expect(TokenKind::CloseBrace).is_some();
-                }
-                false
-            }
-
-            Nonterminal::EnumDecl => {
-                let open_rules = [TokenKind::Enum, TokenKind::Identifier, TokenKind::OpenBrace];
-                if self.expect_n(&open_rules).is_some() {
-                    self.parse_nt(Nonterminal::Params); // OPTIONAL
-                    return self.expect(TokenKind::CloseBrace).is_some();
-                }
-                false
-            }
-
-            Nonterminal::IfExpression => {
-                let res = self.expect(TokenKind::If).is_some() &&
-                self.parse_nt(Nonterminal::Expression) &&
-                self.parse_nt(Nonterminal::BlockExpression);
-                // Else Expression
-                if res && self.expect(TokenKind::Else).is_some() {
-                    return self.parse_nt(Nonterminal::IfExpression) ||
-                           self.parse_nt(Nonterminal::BlockExpression);
-                } 
-                res
-            }
-
-            Nonterminal::ClosureExpression => {
-                let open_rules = [TokenKind::BSlash, TokenKind::OpenParen];
-                if self.expect_n(&open_rules).is_some() {
-                    self.parse_nt(Nonterminal::Params);
-                    // CHANGE TO TYPE
-                    let close_rules = [TokenKind::CloseParen, TokenKind::RArrow, TokenKind::Identifier];
-                    return self.expect_n(&close_rules).is_some() &&
-                           self.parse_nt(Nonterminal::BlockExpression);
-                }
-                false
-            }
-
-            Nonterminal::OperationExpression => {
-                self.parse_expr(0)
-            }
-            _ => todo!()
+            println!("ERROR: expected a block expression after function declaration");
         }
 
+        println!("ERROR: expected `identifier` in function declaration");
+        None
     }
 
-    fn parse_expr(&mut self, min_bp: u8) -> bool {
-        todo!()
+    fn parse_struct(&mut self) -> Option<StructStatement> {
+        self.bump();
+        if let Some(token) = self.take_check(TokenKind::Identifier) {
+            // TODO: add actual error reporting.
+            if !self.bump_check(TokenKind::OpenBrace) {
+                println!("ERROR: missing `{{` in struct declaration");
+                return None;
+            }
+            let fields = match self.parse_params() {
+                Some(fields) => fields,
+                None => return None,
+            };
+
+            // TODO: add actual error reporting.
+            if !self.bump_check(TokenKind::CloseBrace) {
+                println!("ERROR: missing `}}` in struct declaration");
+                return None;
+            }
+
+            let (s, e) = (token.start, token.end);
+            let name = String::from(&self.src[s..e]);
+            return Some(StructStatement { name, fields });
+        }
+        None
     }
 
-    pub fn prefix_binding_power(op: TokenKind) -> u8 {
-        0
+    fn parse_enum(&mut self) -> Option<EnumStatement> {
+        self.bump();
+        if let Some(token) = self.take_check(TokenKind::Identifier) {
+            // TODO: add actual error reporting.
+            if !self.bump_check(TokenKind::OpenBrace) {
+                println!("ERROR: missing `{{` in enum declaration");
+            }
+
+            let mut variants = Vec::new();
+
+            loop {
+                if let Some(token) = self.take_check(TokenKind::Identifier) {
+                    let (s, e) = (token.start, token.end);
+                    let variant = String::from(&self.src[s..e]);
+                    variants.push(variant);
+
+                    // TODO: add actual error reporting.
+                    if !self.bump_check(TokenKind::Comma) {
+                        println!("ERROR: expected `,` after variant declaration");
+                        return None;
+                    }
+                    continue
+                } else if self.peek(0).kind == TokenKind::CloseBrace {
+                    break
+                } else {
+                    println!("ERROR: expected identifier or `}}` in struct declaration");
+                    return None;
+                }
+            }
+
+            // TODO: add actual error reporting.
+            if !self.bump_check(TokenKind::CloseBrace) {
+                println!("ERROR: missing `}}` in struct declaration");
+                return None;
+            }
+
+            let (s, e) = (token.start, token.end);
+            let name = String::from(&self.src[s..e]);
+            return Some(EnumStatement { name, variants });
+        }
+        None
     }
 
-    pub fn parse(input: &'src str) -> bool {
+    fn parse_let(&mut self) -> Option<LetStatement> {
+        self.bump();
+        todo!("let statements")
+    }
+
+
+
+    fn parse_expr(&mut self) -> Option<Expression> {
+        todo!("expressions")
+    }
+
+    fn parse_closure(&mut self) -> Option<ClosureExpression> {
+        todo!("closures")
+    }
+
+    fn parse_call(&mut self) -> Option<CallExpression> {
+        todo!("function calls")
+    }
+
+    fn parse_block(&mut self) -> Option<BlockExpression> {
+        // TODO: add actual error reporting.
+        if !self.bump_check(TokenKind::OpenBrace) {
+            println!("ERROR: expected `{{ in a block expression`");
+            return None
+        }
+
+        let mut statements = Vec::new();
+        loop {
+            match self.parse_statement() {
+                Some(statement) => statements.push(statement),
+                None => break,
+            }
+        }
+
+        if !self.bump_check(TokenKind::CloseBrace) {
+            println!("ERROR: expected `{{` to start a block expression, found `{:?}` instead", self.peek(0).kind);
+            return None
+        }
+        Some(BlockExpression { statements, expression: None })
+    }
+    
+    fn parse_if(&mut self) -> Option<IfExpression> {
+        todo!("if expressions")
+    }
+
+
+    // #[inline]
+    fn parse_params(&mut self) -> Option<Vec<Parameter>> {
+        let mut parameters = Vec::new();
+        let mut first_param = true;
+
+        loop {
+            if !first_param && !self.bump_check(TokenKind::Comma) {
+                if self.peek(0).kind == TokenKind::CloseParen {
+                    break
+                }
+                println!("ERROR: expected `,` after parameter, found `{:?}` instead", self.peek(0).kind)
+            }
+
+            let token = match self.take_check(TokenKind::Identifier) {
+                Some(token) => token,
+                None => break,
+            };
+
+            if !self.bump_check(TokenKind::Colon) {
+                // TODO: add actual error reporting.
+                if self.peek(1).kind == TokenKind::Comma {
+                    self.bump();
+                    println!("ERROR: all function arguments must be typed");
+                    continue
+                }
+                println!("ERROR: expected `:` after identifier in parameter, found `{:?}` instead", self.peek(0).kind);
+                return None;
+            }
+
+            let param_type = match self.parse_type() {
+                Some(param_type) => param_type,
+                None => {
+                    // TODO: add actual error reporting.
+                    println!("ERROR: missing argument type in parameter");
+                    continue;
+                }
+            };
+
+            let (s, e) = (token.start, token.end);
+            let name = String::from(&self.src[s..e]);
+
+            parameters.push(Parameter { name, param_type });
+            first_param = false;
+        }
+
+        // Optional `,` at the end.
+        self.bump_check(TokenKind::Comma);
+        Some(parameters)
+    }
+
+
+    fn parse_type(&mut self) -> Option<Type> {
+        if let Some(token) = self.take_check(TokenKind::Identifier) {
+            let (s, e) = (token.start, token.end);
+            let lexeme = &self.src[s..e];
+            return Some(Parser::parse_type_from_ident(lexeme))
+        } else if self.bump_check(TokenKind::OpenParen) {
+            self.parse_type_tuple();
+        } else if self.bump_check(TokenKind::OpenBracket) {
+            self.parse_type_list();
+        } else if self.bump_check(TokenKind::Fn) {
+            return self.parse_type_fn();
+        }
+        None
+    }
+
+    // #[inline(always)]
+    fn parse_type_tuple(&mut self) -> Option<Type> {
+        let arguments = self.parse_type_args();
+        // TODO: add actual error reporting.
+        if !self.bump_check(TokenKind::CloseParen) {
+            println!("ERROR: expected `)` after type arguments in a function type, found `{:?}` instead", self.peek(0).kind);
+            return None;
+        }
+        Some(Type::Tuple(TupleType(arguments)))
+    }
+
+    // #[inline(always)]
+    fn parse_type_list(&mut self) -> Option<Type> {
+        let list_type = match self.parse_type() {
+            Some(list_type) => Box::new(list_type),
+            None => return None,
+        };
+        // TODO: add actual error reporting.
+        if !self.bump_check(TokenKind::CloseBracket) {
+            println!("ERROR: expected `)` after type arguments in a function type, found `{:?}` instead", self.peek(0).kind);
+            return None;
+        }
+        Some(Type::List(list_type))
+    }
+
+    #[inline(always)]
+    fn parse_type_fn(&mut self) -> Option<Type> {
+        // TODO: add actual error reporting.
+        if !self.bump_check(TokenKind::OpenParen) {
+            println!("ERROR: expected `(` after `fn` in function type");
+            return None;
+        }
+
+        let arguments = self.parse_type_args();
+
+        // TODO: add actual error reporting.
+        if !self.bump_check(TokenKind::CloseParen) {
+            println!("ERROR: expected `)` after type arguments in a function type");
+            return None;
+        }
+
+        // TODO: add actual error reporting.
+        if !self.bump_check(TokenKind::RArrow) {
+            println!("ERROR: expected `->` after type arguments in a function type");
+            return None;
+        }
+
+        match self.parse_type() {
+            Some(return_type) => {
+                let return_type = Box::new(return_type);
+                Some(Type::Fn { arguments, return_type })
+            }
+            None => {
+                // TODO: add actual error reporting.
+                println!("ERROR: expected a return type in a function type");
+                None
+            }
+        }
+    }
+
+    fn parse_type_args(&mut self) -> Vec<Type> {
+        let mut first_type = true;
+        let mut arguments = Vec::new();
+
+        loop {
+            // TODO: add actual error reporting.
+            if !first_type && !self.bump_check(TokenKind::Comma) {
+                println!("ERROR: expected `,` after a type argument in a function type")
+            }
+
+            let type_arg = match self.parse_type() {
+                Some(type_arg) => type_arg,
+                None => break,
+            };
+
+            arguments.push(type_arg);
+
+            first_type = false;
+        }
+
+        // Optional `,` after the last type_arg
+        self.bump_check(TokenKind::Comma);
+        arguments
+    }
+
+    #[inline]
+    fn parse_type_from_ident(typename: &str) -> Type {
+        match typename {
+            "bool" => Type::Bool,
+            "str" => Type::Str,
+            "char" => Type::Char,
+
+            "u8"  => Type::Int { sign: false, kind: IntKind::Bit8  },
+            "u16" => Type::Int { sign: false, kind: IntKind::Bit16 },
+            "u32" => Type::Int { sign: false, kind: IntKind::Bit32 },
+            "u64" => Type::Int { sign: false, kind: IntKind::Bit64 },
+
+            "i8"  => Type::Int { sign: true, kind: IntKind::Bit8  },
+            "i16" => Type::Int { sign: true, kind: IntKind::Bit16 },
+            "i32" => Type::Int { sign: true, kind: IntKind::Bit32 },
+            "i64" => Type::Int { sign: true, kind: IntKind::Bit64 },
+
+            "f32" => Type::Float { kind: FloatKind::Bit32 },
+            "f64" => Type::Float { kind: FloatKind::Bit64 },
+
+            "void" => Type::Void,
+
+            _ => Type::UserDefined { name: String::from(typename) }
+        }
+    }
+
+
+
+    pub fn parse(input: &'src str) -> ASTree {
         let mut parser = Parser::new(input);
-        parser.parse_nt(Nonterminal::Program)
+        let mut statements = Vec::new();
+        loop {
+            if let Some(statement) = parser.parse_statement() {
+                statements.push(statement);
+            } else {
+                break
+            }
+        }
+
+        // TODO: add actual error reporting.
+        if !parser.bump_check(TokenKind::EOF) {
+            println!("ERROR: parser did not reach end of file!");
+        }
+
+        ASTree::new(statements)
     }
 }
 

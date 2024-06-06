@@ -29,6 +29,10 @@ pub enum TokenKind {
     OpenBrace,
     // `}`
     CloseBrace,
+    // `[`
+    OpenBracket,
+    // `]`
+    CloseBracket,
     // `\`
     BSlash,
     // `=`
@@ -191,6 +195,8 @@ impl<'a> Lexer<'a> {
             ')' => TokenKind::CloseParen,
             '{' => TokenKind::OpenBrace,
             '}' => TokenKind::CloseBrace,
+            '[' => TokenKind::OpenBracket,
+            ']' => TokenKind::CloseBracket,
             '=' => TokenKind::Eq,
             '<' => TokenKind::Lt,
             '>' => TokenKind::Gt,

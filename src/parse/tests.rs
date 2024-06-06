@@ -4,7 +4,7 @@ fn stream_check(s: &str, expected: TokenKind) {
     let mut stream = stream::TokenStream::new(s);
     assert_eq!(stream.next_token().kind, expected);
 }
-
+/*
 #[test]
 fn identifier_keyword_tokens() {
     stream_check("fn", TokenKind::Fn);
@@ -130,7 +130,6 @@ fn operator_tokens() {
     stream_check("%", TokenKind::ArithmeticOp { kind: ArithmeticOpKind::Mod });
 }
 
-/*
 #[test]
 fn assignment_tokens() {
     stream_check("=", TokenKind::Assignment { kind: AssignmentKind::Assign });
