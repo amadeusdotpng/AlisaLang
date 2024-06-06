@@ -14,7 +14,6 @@ impl TokenStream {
         let mut reader = StringReader::new(input);
         let mut tokens = Vec::new();
         loop {
-            println!("tokens stream new loop");
             let tok = reader.take();
             tokens.push(tok);
             if tok.kind == ast::TokenKind::EOF { break }

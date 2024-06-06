@@ -2,8 +2,8 @@ use crate::parse::stream::TokenStream;
 use crate::ast::{Token, TokenKind};
 
 pub(crate) struct Parser<'src> {
-    pub stream: TokenStream,
     pub src: &'src str,
+    stream: TokenStream,
     token: Token,
 }
 
@@ -12,8 +12,8 @@ impl<'src> Parser<'src> {
         let mut stream = TokenStream::new(input);
         let tok = stream.next_token();
         Self { 
-            stream,
             src: input,
+            stream,
             token: tok,
         }
     }
@@ -50,6 +50,12 @@ impl<'src> Parser<'src> {
             return true;
         }
         false
+    }
+
+    pub(super) fn bump_while(&mut self, mut predicate: impl FnMut(TokenKind) -> bool) {
+        while predicate(self.token.kind) {
+            self.bump();
+        }
     }
 
     /*

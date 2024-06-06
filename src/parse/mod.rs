@@ -79,7 +79,7 @@ impl<'src> Parser<'src> {
                 println!("ERROR: expected `(` in function declaration");
             }
 
-            let arguments = match self.parse_params() {
+            let arguments = match self.parse_params(TokenKind::CloseParen) {
                 Some(args) => args,
                 None => return None,
             };
@@ -125,7 +125,7 @@ impl<'src> Parser<'src> {
                 println!("ERROR: missing `{{` in struct declaration");
                 return None;
             }
-            let fields = match self.parse_params() {
+            let fields = match self.parse_params(TokenKind::CloseBrace) {
                 Some(fields) => fields,
                 None => return None,
             };
@@ -233,53 +233,60 @@ impl<'src> Parser<'src> {
 
 
     // #[inline]
-    fn parse_params(&mut self) -> Option<Vec<Parameter>> {
+    fn parse_params(&mut self, closing_delimiter: TokenKind) -> Option<Vec<Parameter>> {
         let mut parameters = Vec::new();
         let mut first_param = true;
 
         loop {
             if !first_param && !self.bump_check(TokenKind::Comma) {
-                if self.peek(0).kind == TokenKind::CloseParen {
-                    break
-                }
+                if self.peek(0).kind == closing_delimiter { break }
                 println!("ERROR: expected `,` after parameter, found `{:?}` instead", self.peek(0).kind)
             }
-
-            let token = match self.take_check(TokenKind::Identifier) {
-                Some(token) => token,
-                None => break,
-            };
-
-            if !self.bump_check(TokenKind::Colon) {
-                // TODO: add actual error reporting.
-                if self.peek(1).kind == TokenKind::Comma {
-                    self.bump();
-                    println!("ERROR: all function arguments must be typed");
-                    continue
-                }
-                println!("ERROR: expected `:` after identifier in parameter, found `{:?}` instead", self.peek(0).kind);
-                return None;
-            }
-
-            let param_type = match self.parse_type() {
-                Some(param_type) => param_type,
-                None => {
-                    // TODO: add actual error reporting.
-                    println!("ERROR: missing argument type in parameter");
-                    continue;
-                }
-            };
-
-            let (s, e) = (token.start, token.end);
-            let name = String::from(&self.src[s..e]);
-
-            parameters.push(Parameter { name, param_type });
             first_param = false;
+
+            let parameter = match self.parse_param() {
+                Some(parameter) => parameter,
+                None => {
+                    self.bump_while(|kind| kind != TokenKind::Comma && kind != closing_delimiter);
+                    continue
+                },
+            };
+
+
+            parameters.push(parameter);
         }
 
         // Optional `,` at the end.
         self.bump_check(TokenKind::Comma);
         Some(parameters)
+    }
+
+    // #[inline]
+    fn parse_param(&mut self) -> Option<Parameter> {
+        let token = match self.take_check(TokenKind::Identifier) {
+            Some(token) => token,
+            None => return None,
+        };
+
+        if !self.bump_check(TokenKind::Colon) {
+            // TODO: add actual error reporting.
+            println!("ERROR: expected `:` after identifier in parameter, found `{:?}` instead", self.peek(0).kind);
+            return None;
+        }
+
+        let param_type = match self.parse_type() {
+            Some(param_type) => param_type,
+            None => {
+                // TODO: add actual error reporting.
+                println!("ERROR: missing argument type in parameter");
+                return None;
+            }
+        };
+    
+        println!("inner {:?}", self.peek(0));
+        let (s, e) = (token.start, token.end);
+        let name = String::from(&self.src[s..e]);
+        Some(Parameter { name, param_type })
     }
 
 
