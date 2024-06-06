@@ -31,7 +31,8 @@ fn single_character_tokens() {
     check("%", TokenKind::Percent);
     check("!", TokenKind::Bang);
     check("~", TokenKind::Tilde);
-    check("\\", TokenKind::Unknown);
+    check("\\", TokenKind::BSlash);
+    check("`", TokenKind::Unknown);
     check("", TokenKind::EOF);
 }
 

@@ -1,10 +1,12 @@
-use super::*;
+use super::stream::TokenStream;
+use crate::ast::*;
 
 fn stream_check(s: &str, expected: TokenKind) {
-    let mut stream = stream::TokenStream::new(s);
+    let mut stream = TokenStream::new(s);
     assert_eq!(stream.next_token().kind, expected);
 }
-/*
+
+//
 #[test]
 fn identifier_keyword_tokens() {
     stream_check("fn", TokenKind::Fn);
@@ -15,6 +17,7 @@ fn identifier_keyword_tokens() {
     stream_check("identifier", TokenKind::Identifier);
 }
 
+//
 #[test]
 fn character_literal_tokens() {
     stream_check(
@@ -44,6 +47,7 @@ fn character_literal_tokens() {
     );
 }
 
+//
 #[test]
 fn string_literal_tokens() {
     stream_check(
@@ -73,6 +77,7 @@ fn string_literal_tokens() {
     );
 }
 
+//
 #[test]
 fn number_literal_tokens() {
     stream_check(
@@ -105,45 +110,45 @@ fn number_literal_tokens() {
 #[test]
 fn operator_tokens() {
     // Boolean Operators
-    stream_check("||", TokenKind::BooleanOp { kind: BooleanOpKind::Or });
-    stream_check("&&", TokenKind::BooleanOp { kind: BooleanOpKind::And });
-    stream_check("!", TokenKind::BooleanOp { kind: BooleanOpKind::Not });
-    stream_check("==", TokenKind::BooleanOp { kind: BooleanOpKind::Eq });
-    stream_check("!=", TokenKind::BooleanOp { kind: BooleanOpKind::Ne });
-    stream_check(">=", TokenKind::BooleanOp { kind: BooleanOpKind::Ge });
-    stream_check("<=", TokenKind::BooleanOp { kind: BooleanOpKind::Le });
-    stream_check(">", TokenKind::BooleanOp { kind: BooleanOpKind::Gt });
-    stream_check("<", TokenKind::BooleanOp { kind: BooleanOpKind::Lt });
+    stream_check("||", TokenKind::PipePipe);
+    stream_check("&&", TokenKind::AndAnd);
+    stream_check("!", TokenKind::Bang);
+    stream_check("==", TokenKind::EqEq);
+    stream_check("!=", TokenKind::BangEq);
+    stream_check(">=", TokenKind::GtEq);
+    stream_check("<=", TokenKind::LtEq);
+    stream_check(">", TokenKind::Gt);
+    stream_check("<", TokenKind::Lt);
 
 
     // Arithmetic Operators
-    stream_check("|", TokenKind::ArithmeticOp { kind: ArithmeticOpKind::BitOr });
-    stream_check("&", TokenKind::ArithmeticOp { kind: ArithmeticOpKind::BitAnd });
-    stream_check("^", TokenKind::ArithmeticOp { kind: ArithmeticOpKind::BitXor });
-    stream_check("~", TokenKind::ArithmeticOp { kind: ArithmeticOpKind::BitNot });
-    stream_check(">>", TokenKind::ArithmeticOp { kind: ArithmeticOpKind::BitRight });
-    stream_check("<<", TokenKind::ArithmeticOp { kind: ArithmeticOpKind::BitLeft });
-    stream_check("+", TokenKind::ArithmeticOp { kind: ArithmeticOpKind::Add });
-    stream_check("-", TokenKind::ArithmeticOp { kind: ArithmeticOpKind::Sub });
-    stream_check("*", TokenKind::ArithmeticOp { kind: ArithmeticOpKind::Mul });
-    stream_check("/", TokenKind::ArithmeticOp { kind: ArithmeticOpKind::Div });
-    stream_check("%", TokenKind::ArithmeticOp { kind: ArithmeticOpKind::Mod });
+    stream_check("|", TokenKind::Op { kind: OpKind::Pipe });
+    stream_check("&", TokenKind::Op { kind: OpKind::And });
+    stream_check("^", TokenKind::Op { kind: OpKind::Caret });
+    stream_check("~", TokenKind::Op { kind: OpKind::Tilde });
+    stream_check(">>", TokenKind::Op { kind: OpKind::ShiftR });
+    stream_check("<<", TokenKind::Op { kind: OpKind::ShiftL });
+    stream_check("+", TokenKind::Op { kind: OpKind::Plus });
+    stream_check("-", TokenKind::Op { kind: OpKind::Minus });
+    stream_check("*", TokenKind::Op { kind: OpKind::Star });
+    stream_check("/", TokenKind::Op { kind: OpKind::FSlash });
+    stream_check("%", TokenKind::Op { kind: OpKind::Percent });
 }
 
+//
 #[test]
 fn assignment_tokens() {
-    stream_check("=", TokenKind::Assignment { kind: AssignmentKind::Assign });
-    stream_check("|=", TokenKind::Assignment { kind: AssignmentKind::BitOr });
-    stream_check("&=", TokenKind::Assignment { kind: AssignmentKind::BitAnd });
-    stream_check("^=", TokenKind::Assignment { kind: AssignmentKind::BitXor });
-    stream_check("~=", TokenKind::Assignment { kind: AssignmentKind::BitNot });
-    stream_check(">>=", TokenKind::Assignment { kind: AssignmentKind::BitRight });
-    stream_check("<<=", TokenKind::Assignment { kind: AssignmentKind::BitLeft });
+    stream_check("=", TokenKind::Eq);
+    stream_check("|=", TokenKind::OpEq { kind: OpKind::Pipe });
+    stream_check("&=", TokenKind::OpEq { kind: OpKind::And });
+    stream_check("^=", TokenKind::OpEq { kind: OpKind::Caret });
+    stream_check("~=", TokenKind::OpEq { kind: OpKind::Tilde });
+    stream_check(">>=", TokenKind::OpEq { kind: OpKind::ShiftR });
+    stream_check("<<=", TokenKind::OpEq { kind: OpKind::ShiftL });
 
-    stream_check("+=", TokenKind::Assignment { kind: AssignmentKind::Add });
-    stream_check("-=", TokenKind::Assignment { kind: AssignmentKind::Sub });
-    stream_check("*=", TokenKind::Assignment { kind: AssignmentKind::Mul });
-    stream_check("/=", TokenKind::Assignment { kind: AssignmentKind::Div });
-    stream_check("%=", TokenKind::Assignment { kind: AssignmentKind::Mod });
+    stream_check("+=", TokenKind::OpEq { kind: OpKind::Plus });
+    stream_check("-=", TokenKind::OpEq { kind: OpKind::Minus });
+    stream_check("*=", TokenKind::OpEq { kind: OpKind::Star });
+    stream_check("/=", TokenKind::OpEq { kind: OpKind::FSlash });
+    stream_check("%=", TokenKind::OpEq { kind: OpKind::Percent });
 }
-*/

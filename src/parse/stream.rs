@@ -1,7 +1,7 @@
 use crate::lex::{self, lexer::Lexer};
 
 use crate::ast;
-use crate::ast::{LiteralKind, BooleanOpKind, ArithmeticOpKind};
+use crate::ast::{LiteralKind, OpKind};
 
 #[derive(Debug)]
 pub struct TokenStream{
@@ -14,6 +14,7 @@ impl TokenStream {
         let mut reader = StringReader::new(input);
         let mut tokens = Vec::new();
         loop {
+            println!("tokens stream new loop");
             let tok = reader.take();
             tokens.push(tok);
             if tok.kind == ast::TokenKind::EOF { break }
@@ -83,7 +84,7 @@ impl<'a> StringReader<'a> {
             self.pos += lex_token.length;
 
             let kind = match lex_token.kind {
-                lex::TokenKind::Whitespace => { continue }
+                lex::TokenKind::Whitespace => { self.reserved_lex_token = None; continue }
 
                 lex::TokenKind::Identifier => self.identifier_or_other(start, lex_token.length),
 
@@ -164,20 +165,38 @@ impl<'a> StringReader<'a> {
                 // We can just return here since there's no other lex token that can come after and
                 // still be  a valid
                 self.pos += peek.length;
-                return ast::TokenKind::BooleanOp { kind: BooleanOpKind::Or };
+                return ast::TokenKind::PipePipe
             },
 
             // `&&`
             c @ lex::TokenKind::And if peek.kind == c => {
                 self.pos += peek.length;
-                return ast::TokenKind::BooleanOp { kind: BooleanOpKind::And };
+                return ast::TokenKind::AndAnd
             },
 
             // `==`
             c @ lex::TokenKind::Eq if peek.kind == c => {
                 self.pos += peek.length;
-                return ast::TokenKind::BooleanOp { kind: BooleanOpKind::Eq };
+                return ast::TokenKind::EqEq
             },
+
+            // `>=`
+            lex::TokenKind::Gt if peek.kind == lex::TokenKind::Eq => {
+                self.pos += peek.length;
+                return ast::TokenKind::GtEq
+            }
+
+            // `<=`
+            lex::TokenKind::Lt if peek.kind == lex::TokenKind::Eq => {
+                self.pos += peek.length;
+                return ast::TokenKind::LtEq
+            }
+
+            // `!=`
+            lex::TokenKind::Bang if peek.kind == lex::TokenKind::Eq => {
+                self.pos += peek.length;
+                return ast::TokenKind::BangEq
+            }
 
             // `<<`
             // Since these guys have already consumed the first peek token, we get the next token
@@ -185,64 +204,56 @@ impl<'a> StringReader<'a> {
             c @ lex::TokenKind::Lt if peek.kind == c => {
                 self.pos += peek.length;
                 peek = self.lex.next_token();
-                ast::TokenKind::ArithmeticOp { kind: ArithmeticOpKind::BitLeft }
+                ast::TokenKind::Op { kind: OpKind::ShiftL }
             }
 
             // `>>`
             c @ lex::TokenKind::Gt if peek.kind == c => {
                 self.pos += peek.length;
                 peek = self.lex.next_token();
-                ast::TokenKind::ArithmeticOp { kind: ArithmeticOpKind::BitRight }
+                ast::TokenKind::Op { kind: OpKind::ShiftR }
             }
 
+            // `|>`
+            lex::TokenKind::Pipe if peek.kind == lex::TokenKind::Gt => {
+                self.pos += peek.length;
+                peek = self.lex.next_token();
+                ast::TokenKind::PipeGt
+            }
 
             // Boolean 
-            lex::TokenKind::Bang => ast::TokenKind::BooleanOp { kind: BooleanOpKind::Not },
-            lex::TokenKind::Lt => ast::TokenKind::BooleanOp { kind: BooleanOpKind::Lt },
-            lex::TokenKind::Gt => ast::TokenKind::BooleanOp { kind: BooleanOpKind::Gt },
+            lex::TokenKind::Bang => ast::TokenKind::Bang,
+            lex::TokenKind::Lt => ast::TokenKind::Lt,
+            lex::TokenKind::Gt => ast::TokenKind::Gt,
 
 
             // Arithmetic Operators
-            lex::TokenKind::Pipe => ast::TokenKind::ArithmeticOp { kind: ArithmeticOpKind::BitOr },
-            lex::TokenKind::And => ast::TokenKind::ArithmeticOp { kind: ArithmeticOpKind::BitAnd },
-            lex::TokenKind::Caret => ast::TokenKind::ArithmeticOp { kind: ArithmeticOpKind::BitXor },
-            lex::TokenKind::Tilde => ast::TokenKind::ArithmeticOp { kind: ArithmeticOpKind::BitNot },
+            lex::TokenKind::Pipe => ast::TokenKind::Op { kind: OpKind::Pipe },
+            lex::TokenKind::And => ast::TokenKind::Op { kind: OpKind::And },
+            lex::TokenKind::Caret => ast::TokenKind::Op { kind: OpKind::Caret },
+            lex::TokenKind::Tilde => ast::TokenKind::Op { kind: OpKind::Tilde },
 
-            lex::TokenKind::Plus => ast::TokenKind::ArithmeticOp { kind: ArithmeticOpKind::Add },
-            lex::TokenKind::Minus => ast::TokenKind::ArithmeticOp { kind: ArithmeticOpKind::Sub },
-            lex::TokenKind::Star => ast::TokenKind::ArithmeticOp { kind: ArithmeticOpKind::Mul },
-            lex::TokenKind::FSlash => ast::TokenKind::ArithmeticOp { kind: ArithmeticOpKind::Div },
-            lex::TokenKind::Percent => ast::TokenKind::ArithmeticOp { kind: ArithmeticOpKind::Mod },
+            lex::TokenKind::Plus => ast::TokenKind::Op { kind: OpKind::Plus },
+            lex::TokenKind::Minus => ast::TokenKind::Op { kind: OpKind::Minus },
+            lex::TokenKind::Star => ast::TokenKind::Op { kind: OpKind::Star },
+            lex::TokenKind::FSlash => ast::TokenKind::Op { kind: OpKind::FSlash },
+            lex::TokenKind::Percent => ast::TokenKind::Op { kind: OpKind::Percent },
 
             // Normal Assign
             // We can early return here since there's nothing else after an `=` that can make a
             // valid token.
-            lex::TokenKind::Eq => { return ast::TokenKind::Assignment },
+            lex::TokenKind::Eq => { return ast::TokenKind::Eq },
 
             // Since this match statement addresses all the productions in the pattern from the
             // outer call, this should be unreachable.
             _ => unreachable!(),
         };
 
-        if let ast::TokenKind::BooleanOp { kind } = op {
-            if peek.kind == lex::TokenKind::Eq {
-                self.pos += peek.length;
-                return match kind {
-                    BooleanOpKind::Not => ast::TokenKind::BooleanOp { kind: BooleanOpKind::Ne },
-                    BooleanOpKind::Gt => ast::TokenKind::BooleanOp { kind: BooleanOpKind::Ge },
-                    BooleanOpKind::Lt => ast::TokenKind::BooleanOp { kind: BooleanOpKind::Le },
-
-                    // `||` and `&&` don't end in `=`, `==` is handled in the previous match
-                    // statement, `!=, `>=`, and `<=` are what we're checking for.
-                    // THESE PATTERNS SHOULD BE UNREACHABLE.
-                    _ => unreachable!()
-                }
-            }
-        } else if let ast::TokenKind::ArithmeticOp { kind } = op {
+        if let ast::TokenKind::Op { kind } = op {
             // Check if it's a compound assignment
             if peek.kind == lex::TokenKind::Eq {
                 self.pos += peek.length;
-                return ast::TokenKind::CompoundAssign { kind };
+                return ast::TokenKind::OpEq { kind };
             }
         }
 

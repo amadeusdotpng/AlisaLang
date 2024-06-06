@@ -58,11 +58,34 @@ pub enum TokenKind {
     // `\`
     BSlash,
 
+    // Operators
+    Op { kind: OpKind },
+    OpEq { kind: OpKind },
+
+    // `!`
+    Bang,
+    // `>`
+    Gt,
+    // `<`
+    Lt,
+    // `=`
+    Eq,
+    // `||`
+    PipePipe,
+    // `&&`
+    AndAnd,
+    // `==`
+    EqEq,
+    // `!=`
+    BangEq,
+    // `>=`
+    GtEq,
+    // `<=`
+    LtEq,
+    // `|>`
+    PipeGt,
+
     Literal { kind: LiteralKind },
-    BooleanOp { kind: BooleanOpKind },
-    ArithmeticOp { kind: ArithmeticOpKind },
-    CompoundAssign { kind: ArithmeticOpKind },
-    Assignment,
 
     EOF,
 }
@@ -88,55 +111,30 @@ impl From<lex::LiteralKind> for LiteralKind {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum BooleanOpKind {
-    // Boolean Logic Operators
-    // `||`
-    Or,
-    // `&&`
-    And,
-    // `!`
-    Not,
-
-    // Comparison Operators
-    // `==`
-    Eq,
-    // `!=`
-    Ne,
-    // `>=`
-    Ge,
-    // `<=`
-    Le,
-    // `>`
-    Gt,
-    // `<`
-    Lt,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum ArithmeticOpKind {
+pub enum OpKind {
     // `|`
-    BitOr,
+    Pipe,
     // `&`
-    BitAnd,
+    And,
     // `^`
-    BitXor,
+    Caret,
     // `~`
-    BitNot,
+    Tilde,
     // `>>`
-    BitRight,
+    ShiftR,
     // `<<
-    BitLeft,
+    ShiftL,
 
     // `+`
-    Add,
+    Plus,
     // `-`
-    Sub,
+    Minus,
     // `*`
-    Mul,
+    Star,
     // `/`
-    Div,
+    FSlash,
     // `%`
-    Mod,
+    Percent,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
