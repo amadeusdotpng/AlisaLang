@@ -1,7 +1,6 @@
-use crate::lex;
 
-pub mod node;
-use node::*;
+pub mod token;
+use token::*;
 
 #[derive(Debug)]
 pub struct ASTree {
@@ -14,138 +13,194 @@ impl ASTree {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum TokenKind {
-    Identifier,
 
-    // Keywords
-    // `fn`
-    Fn,
-    // `struct`
-    Struct,
-    // `enum`
-    Enum,
-    // `let`
-    Let,
-    // `if`
-    If,
-    // `else`
-    Else,
-    // `->`
-    RArrow,
+#[derive(Debug)]
+pub enum Statement {
+    Function(FunctionStatement),
+    Struct(StructStatement),
+    Enum(EnumStatement),
+    Let(LetStatement),
+    Expression { expr: Expression, has_semi: bool },
+}
 
-    // Punctuation
-    // `;`
-    Semi,
-    // `:`
-    Colon,
-    // `,`
-    Comma,
-    // `.`
-    Dot,
-    // `(`
-    OpenParen,
-    // `)`
-    CloseParen,
-    // `{`
-    OpenBrace,
-    // `}`
-    CloseBrace,
-    // `[`
-    OpenBracket,
-    // `]`
-    CloseBracket,
-    // `\`
-    BSlash,
+#[derive(Debug)]
+pub enum Expression {
+    Closure(Box<ClosureExpression>),
+    Block(Box<BlockExpression>),
+    Call(Box<CallExpression>),
+    If(Box<IfExpression>),
+    Binary(Box<BinaryExpression>),
+    Unary(Box<UnaryExpression>),
+    Literal(LiteralExpression)
+}
 
-    // Operators
-    Op { kind: OpKind },
-    OpEq { kind: OpKind },
 
-    // `!`
-    Bang,
-    // `>`
-    Gt,
-    // `<`
-    Lt,
-    // `=`
+
+#[derive(Debug)]
+pub struct FunctionStatement {
+    pub name: String,
+    pub arguments: Vec<Parameter>,
+    pub return_type: Type,
+    pub block: BlockExpression,
+}
+
+#[derive(Debug)]
+pub struct StructStatement {
+    pub name: String,
+    pub fields: Vec<Parameter>,
+}
+
+#[derive(Debug)]
+pub struct EnumStatement {
+    pub name: String,
+    pub variants: Vec<String>,
+}
+
+#[derive(Debug)]
+pub struct LetStatement {
+    pub name: String,
+    pub value: Expression,
+}
+
+
+
+#[derive(Debug)]
+pub struct ClosureExpression {
+    pub arguments: Vec<Parameter>,
+    pub expression: BlockExpression,
+    pub return_type: Type,
+}
+
+#[derive(Debug)]
+pub struct CallExpression {
+    pub function_name: String,
+    pub arguments: Vec<Parameter>
+}
+
+#[derive(Debug)]
+pub struct Parameter {
+    pub name: String,
+    pub param_type: Type,
+}
+
+#[derive(Debug)]
+pub struct BlockExpression {
+    pub statements: Vec<Statement>,
+    pub expression: Option<Expression>,
+}
+
+#[derive(Debug)]
+pub struct IfExpression {
+    // This will get type-checked to see if it boils down into the `bool` type.
+    pub condition: Expression,
+    pub body: BlockExpression,
+    pub else_body: Box<ElseExpression>,
+}
+
+#[derive(Debug)]
+pub enum ElseExpression {
+    Else(BlockExpression),
+    ElseIf(IfExpression),
+}
+
+#[derive(Debug)]
+pub struct BinaryExpression {
+    pub lhs: Expression,
+    pub rhs: Expression,
+    pub op: BinaryOperator,
+}
+
+#[derive(Debug)]
+pub struct UnaryExpression {
+    pub rhs: Expression,
+    pub op : UnaryOperator,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub enum BinaryOperator {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    Mod,
+
+    BitOr,
+    BitAnd,
+    BitXor,
+    BitRight,
+    BitLeft,
+
+    BoolOr,
+    BoolAnd,
+
     Eq,
-    // `||`
-    PipePipe,
-    // `&&`
-    AndAnd,
-    // `==`
-    EqEq,
-    // `!=`
-    BangEq,
-    // `>=`
-    GtEq,
-    // `<=`
-    LtEq,
-    // `|>`
-    PipeGt,
-
-    Literal { kind: LiteralKind },
-
-    EOF,
+    Ne,
+    Ge,
+    Le,
+    Gt,
+    Lt
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum LiteralKind {
-    Int,
-    Float, 
-    Str { terminated: bool },
-    Char { terminated: bool },
-    Bool
-}
+// Leading Plus/Minus signs
+#[derive(Clone, Copy, Debug)]
+pub enum UnaryOperator {
+    BoolNot,
+    BitNot,
 
-impl From<lex::LiteralKind> for LiteralKind {
-    fn from(value: lex::LiteralKind) -> Self {
-        match value {
-            lex::LiteralKind::Int => Self::Int,
-            lex::LiteralKind::Float => Self::Float,
-            lex::LiteralKind::Str { terminated } => Self::Str { terminated },
-            lex::LiteralKind::Char { terminated }=> Self::Char { terminated },
-        }
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum OpKind {
-    // `|`
-    Pipe,
-    // `&`
-    And,
-    // `^`
-    Caret,
-    // `~`
-    Tilde,
-    // `>>`
-    ShiftR,
-    // `<<
-    ShiftL,
-
-    // `+`
     Plus,
-    // `-`
     Minus,
-    // `*`
-    Star,
-    // `/`
-    FSlash,
-    // `%`
-    Percent,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct Token {
-    pub kind: TokenKind,
-    pub start: usize,
-    pub end: usize,
+#[derive(Debug)]
+pub struct LiteralExpression {
+    pub kind: LitKind
 }
 
-impl Token {
-    pub fn new(kind: TokenKind, start: usize, end: usize) -> Token {
-        Token { kind, start, end }
-    }
+#[derive(Debug)]
+pub enum LitKind {
+    Bool(bool),
+    Int(u128),
+    Float(f64),
+    Str(String),
+    Char(char),
+    Tuple(Tuple),
+    List(List),
 }
+
+#[derive(Debug)]
+pub struct Tuple(pub Vec<Expression>);
+#[derive(Debug)]
+pub struct List(pub Vec<Expression>);
+
+#[derive(Debug)]
+pub enum Type {
+    Bool,
+    Int { sign: bool, kind: IntKind },
+    Float { kind: FloatKind },
+    Str,
+    Char,
+    Tuple(TupleType),
+    List(Box<Type>),
+    Fn { arguments: Vec<Type>, return_type: Box<Type> },
+    Void,
+    UserDefined { name: String },
+}
+
+#[derive(Debug)]
+pub enum IntKind {
+    Bit8,
+    Bit16,
+    Bit32,
+    Bit64,
+}
+
+#[derive(Debug)]
+pub enum FloatKind {
+    Bit32,
+    Bit64,
+}
+
+#[derive(Debug)]
+pub struct TupleType(pub Vec<Type>);
+
+

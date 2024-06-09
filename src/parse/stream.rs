@@ -1,12 +1,12 @@
 use crate::lex::{self, lexer::Lexer};
 
-use crate::ast;
-use crate::ast::{LiteralKind, OpKind};
+use crate::ast::token as ast_token;
+use crate::ast::token::{LiteralKind, OpKind};
 
 #[derive(Debug)]
 pub struct TokenStream{
     pub pos: usize,
-    tokens: Vec<ast::Token>,
+    tokens: Vec<ast_token::Token>,
 }
 
 impl TokenStream {
@@ -16,7 +16,7 @@ impl TokenStream {
         loop {
             let tok = reader.take();
             tokens.push(tok);
-            if tok.kind == ast::TokenKind::EOF { break }
+            if tok.kind == ast_token::TokenKind::EOF { break }
         }
 
         Self {
@@ -26,7 +26,7 @@ impl TokenStream {
     }
 
     // Returns the token in the current position and advances.
-    pub fn next_token(&mut self) -> ast::Token {
+    pub fn next_token(&mut self) -> ast_token::Token {
         match self.tokens.get(self.pos) {
             Some(&token) => {
                 self.pos += 1;
@@ -73,7 +73,7 @@ impl<'a> StringReader<'a> {
         }
     }
 
-    fn take(&mut self) -> ast::Token {
+    fn take(&mut self) -> ast_token::Token {
         loop {
             let lex_token = match self.reserved_lex_token {
                 Some(tok) => {
@@ -86,24 +86,27 @@ impl<'a> StringReader<'a> {
             self.pos += lex_token.length;
 
             let kind = match lex_token.kind {
-                lex::TokenKind::Whitespace => continue,
+                lex::TokenKind::Whitespace => {
+                    // println!("{:?}: {}", lex_token, start); 
+                    continue
+                }
 
                 lex::TokenKind::Identifier => self.identifier_or_other(start, lex_token.length),
 
-                lex::TokenKind::Semi => ast::TokenKind::Semi,
-                lex::TokenKind::Colon => ast::TokenKind::Colon,
-                lex::TokenKind::Comma => ast::TokenKind::Comma,
-                lex::TokenKind::Dot => ast::TokenKind::Dot,
-                lex::TokenKind::OpenParen => ast::TokenKind::OpenParen,
-                lex::TokenKind::CloseParen => ast::TokenKind::CloseParen,
-                lex::TokenKind::OpenBrace => ast::TokenKind::OpenBrace,
-                lex::TokenKind::CloseBrace => ast::TokenKind::CloseBrace,
-                lex::TokenKind::OpenBracket => ast::TokenKind::OpenBracket,
-                lex::TokenKind::CloseBracket => ast::TokenKind::CloseBracket,
-                lex::TokenKind::BSlash => ast::TokenKind::BSlash,
-                lex::TokenKind::EOF => ast::TokenKind::EOF,
+                lex::TokenKind::Semi => ast_token::TokenKind::Semi,
+                lex::TokenKind::Colon => ast_token::TokenKind::Colon,
+                lex::TokenKind::Comma => ast_token::TokenKind::Comma,
+                lex::TokenKind::Dot => ast_token::TokenKind::Dot,
+                lex::TokenKind::OpenParen => ast_token::TokenKind::OpenParen,
+                lex::TokenKind::CloseParen => ast_token::TokenKind::CloseParen,
+                lex::TokenKind::OpenBrace => ast_token::TokenKind::OpenBrace,
+                lex::TokenKind::CloseBrace => ast_token::TokenKind::CloseBrace,
+                lex::TokenKind::OpenBracket => ast_token::TokenKind::OpenBracket,
+                lex::TokenKind::CloseBracket => ast_token::TokenKind::CloseBracket,
+                lex::TokenKind::BSlash => ast_token::TokenKind::BSlash,
+                lex::TokenKind::EOF => ast_token::TokenKind::EOF,
 
-                lex::TokenKind::Literal{ kind } => ast::TokenKind::Literal{ kind: kind.into() },
+                lex::TokenKind::Literal{ kind } => ast_token::TokenKind::Literal{ kind: kind.into() },
 
                 op @ (
                     lex::TokenKind::Bang
@@ -127,28 +130,29 @@ impl<'a> StringReader<'a> {
 
             };
             let end = self.pos;
-            return ast::Token::new(kind, start, end);
+            // println!("{:?}: {}->{}", lex_token, start, end);
+            return ast_token::Token::new(kind, start, end);
         }
     }
 
-    fn identifier_or_other(&mut self, start: usize, length: usize) -> ast::TokenKind {
+    fn identifier_or_other(&mut self, start: usize, length: usize) -> ast_token::TokenKind {
         let lexeme = &self.src[start..start+length];
         match lexeme {
-            "fn" => ast::TokenKind::Fn,
-            "struct" => ast::TokenKind::Struct,
-            "enum" => ast::TokenKind::Enum,
-            "let" => ast::TokenKind::Let,
-            "if" => ast::TokenKind::If,
-            "else" => ast::TokenKind::Else,
+            "fn" => ast_token::TokenKind::Fn,
+            "struct" => ast_token::TokenKind::Struct,
+            "enum" => ast_token::TokenKind::Enum,
+            "let" => ast_token::TokenKind::Let,
+            "if" => ast_token::TokenKind::If,
+            "else" => ast_token::TokenKind::Else,
 
-            "true" => ast::TokenKind::Literal { kind: LiteralKind::Bool },
-            "false" => ast::TokenKind::Literal { kind: LiteralKind::Bool },
+            "true" => ast_token::TokenKind::Literal { kind: LiteralKind::Bool },
+            "false" => ast_token::TokenKind::Literal { kind: LiteralKind::Bool },
 
-            _ => ast::TokenKind::Identifier
+            _ => ast_token::TokenKind::Identifier
         }
     }
 
-    fn operator(&mut self, op: lex::TokenKind) -> ast::TokenKind {
+    fn operator(&mut self, op: lex::TokenKind) -> ast_token::TokenKind {
         let mut peek = self.lex.next_token();
         let op = match op {
             // If these guys pass, it implies that peek in this comment's scope has been consumed
@@ -159,7 +163,7 @@ impl<'a> StringReader<'a> {
             // `->`
             lex::TokenKind::Minus if peek.kind == lex::TokenKind::Gt => {
                 self.pos += peek.length;
-                return ast::TokenKind::RArrow;
+                return ast_token::TokenKind::RArrow;
             }
 
             // `||` 
@@ -167,37 +171,37 @@ impl<'a> StringReader<'a> {
                 // We can just return here since there's no other lex token that can come after and
                 // still be  a valid
                 self.pos += peek.length;
-                return ast::TokenKind::PipePipe
+                return ast_token::TokenKind::PipePipe
             },
 
             // `&&`
             c @ lex::TokenKind::And if peek.kind == c => {
                 self.pos += peek.length;
-                return ast::TokenKind::AndAnd
+                return ast_token::TokenKind::AndAnd
             },
 
             // `==`
             c @ lex::TokenKind::Eq if peek.kind == c => {
                 self.pos += peek.length;
-                return ast::TokenKind::EqEq
+                return ast_token::TokenKind::EqEq
             },
 
             // `>=`
             lex::TokenKind::Gt if peek.kind == lex::TokenKind::Eq => {
                 self.pos += peek.length;
-                return ast::TokenKind::GtEq
+                return ast_token::TokenKind::GtEq
             }
 
             // `<=`
             lex::TokenKind::Lt if peek.kind == lex::TokenKind::Eq => {
                 self.pos += peek.length;
-                return ast::TokenKind::LtEq
+                return ast_token::TokenKind::LtEq
             }
 
             // `!=`
             lex::TokenKind::Bang if peek.kind == lex::TokenKind::Eq => {
                 self.pos += peek.length;
-                return ast::TokenKind::BangEq
+                return ast_token::TokenKind::BangEq
             }
 
             // `<<`
@@ -206,56 +210,59 @@ impl<'a> StringReader<'a> {
             c @ lex::TokenKind::Lt if peek.kind == c => {
                 self.pos += peek.length;
                 peek = self.lex.next_token();
-                ast::TokenKind::Op { kind: OpKind::ShiftL }
+                ast_token::TokenKind::Op { kind: OpKind::ShiftL }
             }
 
             // `>>`
             c @ lex::TokenKind::Gt if peek.kind == c => {
                 self.pos += peek.length;
                 peek = self.lex.next_token();
-                ast::TokenKind::Op { kind: OpKind::ShiftR }
+                ast_token::TokenKind::Op { kind: OpKind::ShiftR }
             }
 
             // `|>`
             lex::TokenKind::Pipe if peek.kind == lex::TokenKind::Gt => {
                 self.pos += peek.length;
                 peek = self.lex.next_token();
-                ast::TokenKind::PipeGt
+                ast_token::TokenKind::PipeGt
             }
 
             // Boolean 
-            lex::TokenKind::Bang => ast::TokenKind::Bang,
-            lex::TokenKind::Lt => ast::TokenKind::Lt,
-            lex::TokenKind::Gt => ast::TokenKind::Gt,
+            lex::TokenKind::Bang => ast_token::TokenKind::Bang,
+            lex::TokenKind::Lt => ast_token::TokenKind::Lt,
+            lex::TokenKind::Gt => ast_token::TokenKind::Gt,
 
 
             // Arithmetic Operators
-            lex::TokenKind::Pipe => ast::TokenKind::Op { kind: OpKind::Pipe },
-            lex::TokenKind::And => ast::TokenKind::Op { kind: OpKind::And },
-            lex::TokenKind::Caret => ast::TokenKind::Op { kind: OpKind::Caret },
-            lex::TokenKind::Tilde => ast::TokenKind::Op { kind: OpKind::Tilde },
+            lex::TokenKind::Pipe => ast_token::TokenKind::Op { kind: OpKind::Pipe },
+            lex::TokenKind::And => ast_token::TokenKind::Op { kind: OpKind::And },
+            lex::TokenKind::Caret => ast_token::TokenKind::Op { kind: OpKind::Caret },
+            lex::TokenKind::Tilde => ast_token::TokenKind::Op { kind: OpKind::Tilde },
 
-            lex::TokenKind::Plus => ast::TokenKind::Op { kind: OpKind::Plus },
-            lex::TokenKind::Minus => ast::TokenKind::Op { kind: OpKind::Minus },
-            lex::TokenKind::Star => ast::TokenKind::Op { kind: OpKind::Star },
-            lex::TokenKind::FSlash => ast::TokenKind::Op { kind: OpKind::FSlash },
-            lex::TokenKind::Percent => ast::TokenKind::Op { kind: OpKind::Percent },
+            lex::TokenKind::Plus => ast_token::TokenKind::Op { kind: OpKind::Plus },
+            lex::TokenKind::Minus => ast_token::TokenKind::Op { kind: OpKind::Minus },
+            lex::TokenKind::Star => ast_token::TokenKind::Op { kind: OpKind::Star },
+            lex::TokenKind::FSlash => ast_token::TokenKind::Op { kind: OpKind::FSlash },
+            lex::TokenKind::Percent => ast_token::TokenKind::Op { kind: OpKind::Percent },
 
             // Normal Assign
             // We can early return here since there's nothing else after an `=` that can make a
             // valid token.
-            lex::TokenKind::Eq => { return ast::TokenKind::Eq },
+            lex::TokenKind::Eq => {
+                self.reserved_lex_token = Some(peek);
+                return ast_token::TokenKind::Eq
+            },
 
             // Since this match statement addresses all the productions in the pattern from the
             // outer call, this should be unreachable.
             _ => unreachable!(),
         };
 
-        if let ast::TokenKind::Op { kind } = op {
+        if let ast_token::TokenKind::Op { kind } = op {
             // Check if it's a compound assignment
             if peek.kind == lex::TokenKind::Eq {
                 self.pos += peek.length;
-                return ast::TokenKind::OpEq { kind };
+                return ast_token::TokenKind::OpEq { kind };
             }
         }
 

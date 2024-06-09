@@ -1,9 +1,9 @@
 use crate::parse::stream::TokenStream;
-use crate::ast::{Token, TokenKind};
+use crate::ast::token::{Token, TokenKind};
 
 pub(crate) struct Parser<'src> {
     pub src: &'src str,
-    stream: TokenStream,
+    pub stream: TokenStream,
     token: Token,
 }
 

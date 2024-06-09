@@ -1,5 +1,5 @@
 use super::stream::TokenStream;
-use crate::ast::*;
+use crate::ast::token::*;
 
 fn stream_check(s: &str, expected: TokenKind) {
     let mut stream = TokenStream::new(s);

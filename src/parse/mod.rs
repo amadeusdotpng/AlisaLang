@@ -2,71 +2,47 @@ pub mod parser;
 pub mod stream;
 
 use parser::Parser;
-use crate::ast::TokenKind;
-use crate::ast::node::{Statement, Expression};
-use crate::ast::node::{Parameter, Type, IntKind, FloatKind, TupleType};
-use crate::ast::node::{FunctionStatement, StructStatement, EnumStatement, LetStatement};
-use crate::ast::node::{ClosureExpression, CallExpression, BlockExpression, IfExpression};
+use crate::ast::token::{Token, TokenKind, LiteralKind, OpKind};
+use crate::ast::{Statement, Expression};
+use crate::ast::{Parameter, Type, IntKind, FloatKind, TupleType};
+use crate::ast::{FunctionStatement, StructStatement, EnumStatement, LetStatement};
+use crate::ast::{ClosureExpression, CallExpression, BlockExpression, IfExpression};
+use crate::ast::{LitKind, LiteralExpression, BinaryExpression, BinaryOperator};
 use crate::ast::ASTree;
-
-pub enum Nt {
-    Statement,
-    Expression,
-    
-    Function,
-    Struct,
-    Enum,
-    Let,
-
-    Closure,
-    Block,
-    If,
-}
 
 impl<'src> Parser<'src> {
 
     fn parse_statement(&mut self) -> Option<Statement> {
         match self.peek(0).kind {
-            TokenKind::Fn => {
-                match self.parse_function() {
-                    Some(item) => Some(Statement::Function(item)),
-                    None => None,
-                }
+            TokenKind::Fn => match self.parse_function() {
+                Some(item) => Some(Statement::Function(item)),
+                None => None,
             }
-            TokenKind::Struct => {
-                match self.parse_struct() {
-                    Some(item) => Some(Statement::Struct(item)),
-                    None => None,
-                }
-            }
-            TokenKind::Enum => {
-                match self.parse_enum() {
-                    Some(item) => Some(Statement::Enum(item)),
-                    None => None,
-                }
-            }
-            TokenKind::Let => {
-                match self.parse_let() {
-                    Some(item) => Some(Statement::Let(item)),
-                    None => None
-                }
+            TokenKind::Struct => match self.parse_struct() {
+                Some(item) => Some(Statement::Struct(item)),
+                None => None,
             }
 
-            _ => None
-            /*
-            _ => {
-                match self.parse_expr() {
-                    Some(expr) => {
-                        // TODO: add actual error reporting.
-                        if !self.bump_check(TokenKind::Semi) {
-                            println!("ERROR: missing semicolon at {}", self.stream.pos)
-                        }
-                        Some(Statement::Expression(expr))
-                    }
-                    None => None
-                }
+            TokenKind::Enum => match self.parse_enum() {
+                Some(item) => Some(Statement::Enum(item)),
+                None => None,
             }
-            */
+            
+            TokenKind::Let => match self.parse_let() {
+                Some(item) => Some(Statement::Let(item)),
+                None => None
+            }
+
+            // _ => None
+            _ => match self.parse_expr(0) {
+                Some(expr) => {
+                    Some(Statement::Expression { 
+                        expr,
+                        has_semi: self.bump_check(TokenKind::Semi)
+                    })
+                }
+                None => None
+            }
         }
     }
 
@@ -112,7 +88,6 @@ impl<'src> Parser<'src> {
             }
             println!("ERROR: expected a block expression after function declaration");
         }
-
         println!("ERROR: expected `identifier` in function declaration");
         None
     }
@@ -140,6 +115,7 @@ impl<'src> Parser<'src> {
             let name = String::from(&self.src[s..e]);
             return Some(StructStatement { name, fields });
         }
+        println!("ERROR: expected identifier in struct declaration");
         None
     }
 
@@ -183,18 +159,164 @@ impl<'src> Parser<'src> {
             let name = String::from(&self.src[s..e]);
             return Some(EnumStatement { name, variants });
         }
+        println!("ERROR: expected identifier in enum declaration");
         None
     }
 
     fn parse_let(&mut self) -> Option<LetStatement> {
         self.bump();
-        todo!("let statements")
+        if let Some(token) = self.take_check(TokenKind::Identifier) {
+            // TODO: add actual error reporting.
+            if !self.bump_check(TokenKind::Eq) {
+                println!("ERROR: expected `=` in a let statement, found {:?} instead", self.peek(0));
+            }
+
+            let value = match self.parse_expr(0) {
+                Some(value) => value,
+                None => {
+                    // TODO: add actual error reporting.
+                    println!("ERROR: expected expression in a let statement, found {:?} instead", self.peek(0));
+                    return None;
+                }
+            };
+
+            if !self.bump_check(TokenKind::Semi) {
+                println!("ERROR: expected `;` at the end of a let statement, found {:?} instead", self.peek(0))
+            }
+
+            let (s, e) = (token.start, token.end);
+            let name = String::from(&self.src[s..e]);
+            return Some(LetStatement { name, value });
+        }
+        println!("ERROR: expected identifier in a let statement");
+        None
     }
 
 
+    fn infix_binding_power(op: BinaryOperator) -> (u8, u8){
+        match op {
+            BinaryOperator::BoolOr  => (1, 2),
+            BinaryOperator::BoolAnd => (3, 4),
+                                     
+            BinaryOperator::Eq
+            | BinaryOperator::Ne
+            | BinaryOperator::Ge
+            | BinaryOperator::Le
+            | BinaryOperator::Gt
+            | BinaryOperator::Lt => (7, 8),
 
-    fn parse_expr(&mut self) -> Option<Expression> {
-        todo!("expressions")
+            BinaryOperator::BitOr     => (9, 10),
+            BinaryOperator::BitAnd    => (11, 12),
+            BinaryOperator::BitXor    => (13, 14),
+            BinaryOperator::BitRight
+            | BinaryOperator::BitLeft => (15, 16),
+
+            BinaryOperator::Add
+            | BinaryOperator::Sub => (17, 18),
+            BinaryOperator::Mul
+            | BinaryOperator::Div => (19, 20),
+            BinaryOperator::Mod   => (21, 22),
+        }
+    }
+
+    fn parse_expr(&mut self, min_bp: u8) -> Option<Expression> {
+        let tok = self.peek(0);
+        let mut lhs = match tok.kind {
+            TokenKind::Literal { kind } => {
+                self.bump();
+                self.parse_literal(kind, (tok.start, tok.end))
+            }
+            
+            _ => return None
+        };
+
+        loop {
+            let tok = self.peek(0);
+            let op = match tok.kind {
+                TokenKind::Op { kind: OpKind::Pipe    } => BinaryOperator::BitOr,
+                TokenKind::Op { kind: OpKind::And     } => BinaryOperator::BitAnd,
+                TokenKind::Op { kind: OpKind::Caret   } => BinaryOperator::BitXor,
+                TokenKind::Op { kind: OpKind::ShiftR  } => BinaryOperator::BitRight,
+                TokenKind::Op { kind: OpKind::ShiftL  } => BinaryOperator::BitLeft,
+                TokenKind::Op { kind: OpKind::Plus    } => BinaryOperator::Add,
+                TokenKind::Op { kind: OpKind::Minus   } => BinaryOperator::Sub,
+                TokenKind::Op { kind: OpKind::Star    } => BinaryOperator::Mul,
+                TokenKind::Op { kind: OpKind::FSlash  } => BinaryOperator::Div,
+                TokenKind::Op { kind: OpKind::Percent } => BinaryOperator::Mod,
+
+                TokenKind::PipePipe => BinaryOperator::BoolOr,
+                TokenKind::AndAnd   => BinaryOperator::BoolAnd,
+
+                TokenKind::EqEq     => BinaryOperator::Eq,
+                TokenKind::BangEq   => BinaryOperator::Ne,
+                TokenKind::GtEq     => BinaryOperator::Ge,
+                TokenKind::LtEq     => BinaryOperator::Le,
+                TokenKind::Gt       => BinaryOperator::Gt,
+                TokenKind::Lt       => BinaryOperator::Lt,
+                _ => break
+            };
+
+            let (l_bp, r_bp) = Self::infix_binding_power(op);
+            
+            if l_bp < min_bp {
+                break
+            }
+
+            let mark = self.stream.mark();
+            self.bump();
+            let rhs = match self.parse_expr(r_bp) {
+                Some(rhs) => rhs,
+                None => { self.stream.reset(mark); return None }
+            };
+
+            let bin_expr = BinaryExpression { lhs, rhs, op };
+            lhs = Expression::Binary(Box::new(bin_expr));
+        }
+
+        Some(lhs)
+    }
+
+    fn parse_literal(&mut self, kind: LiteralKind, pos: (usize, usize)) -> Expression {
+        let (s, e) = pos;
+        let kind = match kind {
+            LiteralKind::Bool => {
+                let lexeme = &self.src[s..e];
+                let Ok(value) = lexeme.parse::<bool>() else {
+                    unreachable!("could not parse boolean"); 
+                };
+                LitKind::Bool(value)
+            }
+
+            LiteralKind::Int => {
+                let lexeme = &self.src[s..e];
+                let Ok(value) = lexeme.parse::<u128>() else { 
+                    unreachable!("could not parse integer"); 
+                };
+                LitKind::Int(value)
+            }
+
+            LiteralKind::Float => {
+                let lexeme = &self.src[s..e];
+                let Ok(value) = lexeme.parse::<f64>() else {
+                    unreachable!("could not parse float");
+                };
+                LitKind::Float(value)
+            }
+
+            LiteralKind::Str { terminated: _ } => {
+                let value = String::from(&self.src[s+1..e-1]);
+                LitKind::Str(value)
+            }
+
+            LiteralKind::Char { terminated: _ } => {
+                let lexeme = &self.src[s+1..e-1];
+                let Ok(value) = lexeme.parse::<char>() else {
+                    unreachable!("could not parse char");
+                };
+                LitKind::Char(value)
+            }
+        };
+        Expression::Literal(LiteralExpression { kind })
     }
 
     fn parse_closure(&mut self) -> Option<ClosureExpression> {
@@ -208,7 +330,7 @@ impl<'src> Parser<'src> {
     fn parse_block(&mut self) -> Option<BlockExpression> {
         // TODO: add actual error reporting.
         if !self.bump_check(TokenKind::OpenBrace) {
-            println!("ERROR: expected `{{ in a block expression`");
+            println!("ERROR: expected `{{` in a block expression`");
             return None
         }
 
@@ -220,11 +342,31 @@ impl<'src> Parser<'src> {
             }
         }
 
+        // TODO: add actual error reporting.
+        if !statements.is_empty() {
+            for statement in &statements[..statements.len()-1] {
+                if let Statement::Expression { expr: _, has_semi } = statement {
+                    if !has_semi { println!("ERROR: epected `;` at the end of expression") }
+                }
+            }
+        }
+
+        // TODO: add actual error reporting.
         if !self.bump_check(TokenKind::CloseBrace) {
-            println!("ERROR: expected `{{` to start a block expression, found `{:?}` instead", self.peek(0).kind);
+            println!("ERROR: expected `}}` to end a block expression, found `{:?}` instead", self.peek(0).kind);
             return None
         }
-        Some(BlockExpression { statements, expression: None })
+
+        let expression = match statements.last() {
+            Some(Statement::Expression { expr: _, has_semi }) if !has_semi => {
+                let expr = statements.pop();
+                let Some(Statement::Expression { expr, has_semi: _ }) = expr else { unreachable!() };
+                Some(expr)
+            }
+            _ => None,
+        };
+
+        Some(BlockExpression { statements, expression })
     }
     
     fn parse_if(&mut self) -> Option<IfExpression> {
@@ -251,7 +393,6 @@ impl<'src> Parser<'src> {
                     continue
                 },
             };
-
 
             parameters.push(parameter);
         }
@@ -283,7 +424,6 @@ impl<'src> Parser<'src> {
             }
         };
     
-        println!("inner {:?}", self.peek(0));
         let (s, e) = (token.start, token.end);
         let name = String::from(&self.src[s..e]);
         Some(Parameter { name, param_type })
@@ -423,9 +563,20 @@ impl<'src> Parser<'src> {
         let mut statements = Vec::new();
         loop {
             if let Some(statement) = parser.parse_statement() {
+                // println!("{:?}", &statement);
                 statements.push(statement);
             } else {
                 break
+            }
+        }
+
+        // TODO: add actual error reporting.
+        for statement in &statements {
+            if let Statement::Expression { expr: _, has_semi } = statement {
+                if !has_semi { 
+                    println!("ERROR: expected `;` at the end of expression\n\
+                              \tnote: expressions are not allowed in the outer most block") 
+                }
             }
         }
 
