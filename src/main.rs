@@ -1,12 +1,11 @@
-#![allow(warnings)]
-
 mod lex;
 #[allow(unused_imports)]
 use lex::*;
 
 
 mod parse;
-use parse::parser::Parser;
+use parse::Parser;
+#[allow(unused_imports)]
 use parse::stream::TokenStream;
 
 mod ast;

@@ -6,7 +6,7 @@ use crate::ast::token::{LiteralKind, OpKind};
 #[derive(Debug)]
 pub struct TokenStream{
     pub pos: usize,
-    tokens: Vec<ast_token::Token>,
+    pub tokens: Vec<ast_token::Token>,
 }
 
 impl TokenStream {

@@ -21,6 +21,7 @@ pub enum Statement {
     Enum(EnumStatement),
     Let(LetStatement),
     Expression { expr: Expression, has_semi: bool },
+    EOF,
 }
 
 #[derive(Debug)]
