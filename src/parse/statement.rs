@@ -58,7 +58,7 @@ impl<'src> Parser<'src> {
             return Ok(FunctionStatement { name, return_type, arguments, block });
         }
         println!("ERROR: expected a block expression after function declaration");
-        Err(ParseError::ExpectedSingle { expected: TokenKind::EOF, found: TokenKind::EOF })
+        Err(ParseError::ExpectedSingle { expected: TokenKind::EOF, found: self.peek(0) })
     }
 
     pub(super) fn parse_struct(&mut self) -> Result<StructStatement, ParseError> {
@@ -95,7 +95,7 @@ impl<'src> Parser<'src> {
                 _ => {
                     let err = ParseError::ExpectedAlternatives {
                         expected: [TokenKind::Identifier, TokenKind::CloseBrace].into(),
-                        found: self.peek(0).kind,
+                        found: self.peek(0),
                     };
                     return Err(err);
                 }
@@ -114,7 +114,7 @@ impl<'src> Parser<'src> {
         self.bump();
 
         let name = self.take_expect(TokenKind::Identifier)?;
-        self.bump_expect(TokenKind::OpenBrace)?;
+        self.bump_expect(TokenKind::Eq)?;
         let value = self.parse_expr(0)?;
         self.bump_expect(TokenKind::Semi)?;
 

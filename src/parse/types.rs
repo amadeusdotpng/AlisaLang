@@ -16,28 +16,46 @@ impl<'src> Parser<'src> {
 
 
         loop {
-            if self.peek(0).kind == close { break }
-            if !first_param { self.bump_recover(TokenKind::Comma); }
-            first_param = false;
+            // Peek current token and token ahead to check if it's the closing delimiter.
+            let (peek_0, peek_1) = (self.peek(0).kind, self.peek(1).kind);
+            if peek_0 == close || peek_1 == close { break }
 
-            let peek = self.peek(0).kind;
-            let valid = matches!(peek, TokenKind::Identifier | TokenKind::Comma)
-                || peek == close;
+            let err = if !first_param { 
+                self.bump_expect(TokenKind::Comma)
+            } else { first_param = false; Ok(()) };
 
-            if !valid {
-                return Err(ParseError::ExpectedAlternatives {
-                    expected: Box::new([TokenKind::Comma, close, TokenKind::Identifier]),
-                    found: self.peek(0).kind,
-                })
+            // After we check if there's a comma, we want to check if the next token is an
+            // Identifier or a Comma since those two things are the only two things that should be
+            // coming after the opening delimiter or a successful parameter parse.
+            let peek = self.peek(0);
+            if !matches!(peek.kind, TokenKind::Identifier | TokenKind::Comma) {
+                // If it's not one of those two things, we know for sure parsing the parameter list
+                // should be over. If there wasn't an error with checking the comma, we just say
+                // that we're expecting the closing delimiter. If there was an issue, we say that
+                // we expected a comma OR the closing delimiter.
+                let err = match err.is_ok() {
+                    true => ParseError::ExpectedSingle { expected: close, found: peek },
+                    false => ParseError::ExpectedAlternatives { expected: Box::new([TokenKind::Comma, close]), found: peek },
+                };
+                return Err(err);
+            }
+
+            if let Err(err) = err {
+                self.recover_error(err);
             }
 
             let parameter = match self.parse_param() {
                 Ok(parameter) => parameter,
                 Err(err) => {
-                    self.recover_error(err);
                     self.bump_while(|kind| {
                         matches!(kind, TokenKind::Identifier | TokenKind::Colon)
                     });
+
+                    let peek = self.peek(0);
+                    if !matches!(peek.kind, TokenKind::Identifier | TokenKind::Comma) {
+                        return Err(err);
+                    }
+                    self.recover_error(err);
                     continue
                 }
             };
@@ -45,6 +63,7 @@ impl<'src> Parser<'src> {
             parameters.push(parameter);
         }
         
+        // Optional `,` after the last type_arg
         self.bump_check(TokenKind::Comma);
         self.bump_expect(close)?;
 
@@ -73,6 +92,7 @@ impl<'src> Parser<'src> {
             TokenKind::OpenParen => self.parse_type_tuple(),
             TokenKind::OpenBracket => self.parse_type_list(),
             TokenKind::Fn => self.parse_type_fn(),
+
             _ => Err(ParseError::ExpectedNode {
                 expected: "type".into(),
                 found: self.peek(0).kind
@@ -82,10 +102,7 @@ impl<'src> Parser<'src> {
 
     // #[inline(always)]
     pub(super) fn parse_type_tuple(&mut self) -> Result<Type, ParseError> {
-        self.bump();
-
-        let arguments = self.parse_type_args();
-        self.bump_expect(TokenKind::CloseParen)?;
+        let arguments = self.parse_type_args(TokenKind::OpenParen, TokenKind::CloseParen)?;
         Ok(Type::Tuple(TupleType(arguments)))
     }
 
@@ -94,7 +111,7 @@ impl<'src> Parser<'src> {
         self.bump();
 
         let list_type = Box::new(self.parse_type()?);
-        self.bump_expect(TokenKind::CloseBracket)?;
+        self.bump_recover(TokenKind::CloseBracket);
 
         Ok(Type::List(list_type))
     }
@@ -103,34 +120,83 @@ impl<'src> Parser<'src> {
     pub(super) fn parse_type_fn(&mut self) -> Result<Type, ParseError> {
         self.bump();
 
-        self.bump_expect(TokenKind::OpenParen)?;
-        let arguments = self.parse_type_args();
-        self.bump_expect(TokenKind::CloseParen)?;
+        let arguments = self.parse_type_args(TokenKind::OpenParen, TokenKind::CloseParen)?;
+
         self.bump_expect(TokenKind::RArrow)?;
+
         let return_type = Box::new(self.parse_type()?);
 
         Ok(Type::Fn { arguments, return_type })
     }
 
-    pub(super) fn parse_type_args(&mut self) -> Vec<Type> {
+    // See parse_params()
+    pub(super) fn parse_type_args(&mut self, open: TokenKind, close: TokenKind) -> Result<Vec<Type>, ParseError> {
+        self.bump_expect(open)?;
+
         let mut first_type = true;
         let mut arguments = Vec::new();
 
         loop {
-            if !first_type { self.bump_recover(TokenKind::Comma); }
-            first_type = false;
+            let (peek_0, peek_1) = (self.peek(0).kind, self.peek(1).kind);
+            if peek_0 == close || (peek_1 == close && !first_type) { break }
+
+            let err = if !first_type { 
+                self.bump_expect(TokenKind::Comma)
+            } else { first_type = false; Ok(()) };
+
+            let peek = self.peek(0);
+            let valid = matches!(
+                peek.kind,
+
+                TokenKind::Comma
+                | TokenKind::OpenParen
+                | TokenKind::OpenBracket
+                | TokenKind::Fn
+                | TokenKind::Identifier
+            );
+
+            if !valid {
+                let err = match err.is_ok() {
+                    true => ParseError::ExpectedSingle { expected: close, found: peek },
+                    false => ParseError::ExpectedAlternatives { expected: Box::new([TokenKind::Comma, close]), found: peek },
+                };
+                return Err(err);
+            }
+
+            if let Err(err) = err {
+                self.recover_error(err);
+            }
 
             let type_arg = match self.parse_type() {
                 Ok(type_arg) => type_arg,
-                Err(_) => break,
+                Err(err) => {
+                    self.bump_while(|kind| {
+                        matches!(kind, TokenKind::Identifier)
+                    });
+                    let peek = self.peek(0);
+                    let valid = matches!(
+                        peek.kind,
+
+                        TokenKind::Comma
+                        | TokenKind::OpenParen
+                        | TokenKind::OpenBracket
+                        | TokenKind::Fn
+                        | TokenKind::Identifier
+                    );
+                    if !valid {
+                        return Err(err);
+                    }
+                    self.recover_error(err);
+                    continue
+                },
             };
 
             arguments.push(type_arg);
         }
 
-        // Optional `,` after the last type_arg
         self.bump_check(TokenKind::Comma);
-        arguments
+        self.bump_expect(close)?;
+        Ok(arguments)
     }
 
     #[inline]

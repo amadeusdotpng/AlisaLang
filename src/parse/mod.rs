@@ -20,6 +20,7 @@ pub struct Parser<'src> {
 impl<'src> Parser<'src> {
     pub(self) fn new(input: &'src str) -> Parser {
         let mut stream = TokenStream::new(input);
+
         let tok = stream.next_token();
         Self { 
             src: input,
@@ -60,7 +61,7 @@ impl<'src> Parser<'src> {
         if self.check(tok) {
             return Ok(self.take());
         }
-        let err = ParseError::ExpectedSingle { expected: tok, found: self.peek(0).kind };
+        let err = ParseError::ExpectedSingle { expected: tok, found: self.peek(0) };
         Err(err)
     }
 
@@ -79,7 +80,7 @@ impl<'src> Parser<'src> {
             self.bump();
             return Ok(());
         }
-        let err = ParseError::ExpectedSingle { expected: tok, found: self.peek(0).kind };
+        let err = ParseError::ExpectedSingle { expected: tok, found: self.peek(0) };
         Err(err)
     }
 
@@ -91,10 +92,12 @@ impl<'src> Parser<'src> {
     }
 
     //
-    pub(self) fn bump_recover(&mut self, tok: TokenKind) {
+    pub(self) fn bump_recover(&mut self, tok: TokenKind) -> bool {
         if let Err(err) = self.bump_expect(tok) {
-            self.errors.push(err)
+            self.errors.push(err);
+            return false;
         }
+        true
     }
 
     // Peeks `dist` tokens ahead. If dist is zero, we just return the current token we're storing.
@@ -104,11 +107,10 @@ impl<'src> Parser<'src> {
         }
 
         let mark = self.stream.mark();
-        for _ in 0..(dist) {
-            self.bump();
+        for _ in 0..(dist-1) {
+            self.stream.next_token();
         }
-
-        let tok = self.take();
+        let tok = self.stream.next_token();
         self.stream.reset(mark);
         tok
     }
@@ -123,6 +125,7 @@ impl<'src> Parser<'src> {
 
     pub fn parse(input: &'src str) -> ASTree {
         let mut parser = Parser::new(input);
+
         let mut statements = Vec::new();
         loop {
             match parser.parse_statement() {
@@ -140,10 +143,6 @@ impl<'src> Parser<'src> {
             let Statement::Expression { expr: _, has_semi } = statement else { continue };
             if !has_semi { 
                 parser.errors.push(ParseError::OuterExpression);
-                /*
-                println!("ERROR: expected `;` at the end of expression\n\
-                          \tnote: expressions are not allowed in the outer most block") 
-                */
             }
         }
 
@@ -151,20 +150,23 @@ impl<'src> Parser<'src> {
             println!("{:?}", err);
         }
 
+        /*
         // TODO: add actual error reporting.
         if !parser.bump_check(TokenKind::EOF) {
             println!("ERROR: parser did not reach end of file!");
         }
+        */
 
         ASTree::new(statements)
     }
 }
 
 #[derive(Debug)]
-pub(self) enum ParseError {
-    ExpectedSingle{expected: TokenKind, found: TokenKind},
-    ExpectedAlternatives{expected: Box<[TokenKind]>, found: TokenKind},
-    ExpectedNode{expected: String, found: TokenKind},
+pub enum ParseError {
+    ExpectedSingle{expected: TokenKind, found: Token},
+    ExpectedAlternatives{expected: Box<[TokenKind]>, found: Token},
+    ExpectedNode{expected: String, found: Token},
+    // UnclosedDelimiter{delimiter: Token},
     OuterExpression,
 }
 
