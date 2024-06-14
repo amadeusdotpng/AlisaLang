@@ -95,7 +95,7 @@ impl<'src> Parser<'src> {
 
             _ => Err(ParseError::ExpectedNode {
                 expected: "type".into(),
-                found: self.peek(0).kind
+                found: self.peek(0)
             }),
         }
     }

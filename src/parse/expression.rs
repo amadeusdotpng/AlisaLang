@@ -43,7 +43,7 @@ impl<'src> Parser<'src> {
             
             _ => return Err(ParseError::ExpectedNode {
                 expected: "expression".into(),
-                found: self.peek(0).kind
+                found: self.peek(0),
             })
         };
 
