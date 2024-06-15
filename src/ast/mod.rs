@@ -1,4 +1,3 @@
-
 pub mod token;
 use token::*;
 
@@ -20,7 +19,7 @@ pub enum Statement {
     Struct(StructStatement),
     Enum(EnumStatement),
     Let(LetStatement),
-    Expression { expr: Expression, has_semi: bool },
+    Expression { expr: Expression, end_token: Token },
     EOF,
 }
 
@@ -32,7 +31,8 @@ pub enum Expression {
     If(Box<IfExpression>),
     Binary(Box<BinaryExpression>),
     Unary(Box<UnaryExpression>),
-    Literal(LiteralExpression)
+    Literal(LiteralExpression),
+    Identifier(IdentExpression),
 }
 
 
@@ -68,7 +68,7 @@ pub struct LetStatement {
 #[derive(Debug)]
 pub struct ClosureExpression {
     pub arguments: Vec<Parameter>,
-    pub expression: BlockExpression,
+    pub block: BlockExpression,
     pub return_type: Type,
 }
 
@@ -95,7 +95,7 @@ pub struct IfExpression {
     // This will get type-checked to see if it boils down into the `bool` type.
     pub condition: Expression,
     pub body: BlockExpression,
-    pub else_body: Box<ElseExpression>,
+    pub else_body: Option<Box<ElseExpression>>,
 }
 
 #[derive(Debug)]
@@ -139,13 +139,16 @@ pub enum BinaryOperator {
     Ge,
     Le,
     Gt,
-    Lt
+    Lt,
+
+    Pipe,
 }
 
 // Leading Plus/Minus signs
 #[derive(Clone, Copy, Debug)]
 pub enum UnaryOperator {
     BoolNot,
+
     BitNot,
 
     Plus,
@@ -172,6 +175,11 @@ pub enum LitKind {
 pub struct Tuple(pub Vec<Expression>);
 #[derive(Debug)]
 pub struct List(pub Vec<Expression>);
+
+#[derive(Debug)]
+pub struct IdentExpression {
+    name: String,
+}
 
 #[derive(Debug)]
 pub enum Type {

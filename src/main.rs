@@ -12,6 +12,7 @@ mod ast;
 
 use std::fs::File;
 use std::io::prelude::*;
+use std::time::Instant;
 
 fn main() -> std::io::Result<()> {
     use std::env;
@@ -27,6 +28,10 @@ fn main() -> std::io::Result<()> {
 
     // println!("{:#?}", TokenStream::new(&contents));
     // println!("{}", contents);
-    println!("{:#?}", Parser::parse(&contents));
+    let t = Instant::now();
+    let tree = Parser::parse(&contents);
+    let time = Instant::now() - t;
+    println!("{:?}", time);
+    println!("{:#?}", tree);
     Ok(())
 }

@@ -125,7 +125,7 @@ fn operator_tokens() {
     stream_check("|", TokenKind::Op { kind: OpKind::Pipe });
     stream_check("&", TokenKind::Op { kind: OpKind::And });
     stream_check("^", TokenKind::Op { kind: OpKind::Caret });
-    stream_check("~", TokenKind::Op { kind: OpKind::Tilde });
+    stream_check("~", TokenKind::Tilde);
     stream_check(">>", TokenKind::Op { kind: OpKind::ShiftR });
     stream_check("<<", TokenKind::Op { kind: OpKind::ShiftL });
     stream_check("+", TokenKind::Op { kind: OpKind::Plus });
@@ -142,7 +142,6 @@ fn assignment_tokens() {
     stream_check("|=", TokenKind::OpEq { kind: OpKind::Pipe });
     stream_check("&=", TokenKind::OpEq { kind: OpKind::And });
     stream_check("^=", TokenKind::OpEq { kind: OpKind::Caret });
-    stream_check("~=", TokenKind::OpEq { kind: OpKind::Tilde });
     stream_check(">>=", TokenKind::OpEq { kind: OpKind::ShiftR });
     stream_check("<<=", TokenKind::OpEq { kind: OpKind::ShiftL });
 

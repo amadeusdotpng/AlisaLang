@@ -57,7 +57,7 @@ impl<'src> Parser<'src> {
 
     // Advances the token stream and returns if the next token matches `tok`, otherwise returns a
     // ParseError.
-    pub(self) fn take_expect(&mut self, tok: TokenKind) -> Result<Token, ParseError> {
+    pub(self) fn take_expect(&mut self, tok: TokenKind) -> ParseResult<Token> {
         if self.check(tok) {
             return Ok(self.take());
         }
@@ -75,7 +75,7 @@ impl<'src> Parser<'src> {
     }
 
     // Advances the token stream if the next token matches `tok`, otherwise returns a ParseError.
-    pub(self) fn bump_expect(&mut self, tok: TokenKind) -> Result<(), ParseError> {
+    pub(self) fn bump_expect(&mut self, tok: TokenKind) -> ParseResult<()> {
         if self.check(tok) {
             self.bump();
             return Ok(());
@@ -115,8 +115,8 @@ impl<'src> Parser<'src> {
         tok
     }
 
-    pub(self) fn get_lexeme(&mut self, tok: Token) -> String {
-        String::from(&self.src[tok.start..tok.end])
+    pub(self) fn get_lexeme(&self, tok: Token) -> &str {
+        &self.src[tok.start..tok.end]
     }
 
     pub(self) fn recover_error(&mut self, err: ParseError) {
@@ -140,8 +140,8 @@ impl<'src> Parser<'src> {
 
         // TODO: add actual error reporting.
         for statement in &statements {
-            let Statement::Expression { expr: _, has_semi } = statement else { continue };
-            if !has_semi { 
+            let Statement::Expression { expr: _, end_token } = statement else { continue };
+            if end_token.kind != TokenKind::Semi { 
                 parser.errors.push(ParseError::OuterExpression);
             }
         }
@@ -149,13 +149,6 @@ impl<'src> Parser<'src> {
         for err in &parser.errors {
             println!("{:?}", err);
         }
-
-        /*
-        // TODO: add actual error reporting.
-        if !parser.bump_check(TokenKind::EOF) {
-            println!("ERROR: parser did not reach end of file!");
-        }
-        */
 
         ASTree::new(statements)
     }
@@ -169,6 +162,8 @@ pub enum ParseError {
     // UnclosedDelimiter{delimiter: Token},
     OuterExpression,
 }
+
+pub(self) type ParseResult<T> = Result<T, ParseError>;
 
 #[cfg(test)]
 mod tests;

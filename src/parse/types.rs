@@ -1,5 +1,4 @@
-use crate::parse::Parser;
-use crate::parse::ParseError;
+use crate::parse::{Parser, ParseError, ParseResult};
 
 use crate::ast::token::TokenKind;
 use crate::ast::Parameter;
@@ -8,7 +7,7 @@ use crate::ast::{Type, IntKind, FloatKind, TupleType};
 
 impl<'src> Parser<'src> {
     // #[inline]
-    pub(super) fn parse_params(&mut self, open: TokenKind, close: TokenKind) -> Result<Vec<Parameter>, ParseError> {
+    pub(super) fn parse_params(&mut self, open: TokenKind, close: TokenKind) -> ParseResult<Vec<Parameter>> {
         self.bump_expect(open)?;
 
         let mut parameters = Vec::new();
@@ -71,17 +70,17 @@ impl<'src> Parser<'src> {
     }
 
     // #[inline]
-    pub(super) fn parse_param(&mut self) -> Result<Parameter, ParseError> {
+    pub(super) fn parse_param(&mut self) -> ParseResult<Parameter> {
         let name = self.take_expect(TokenKind::Identifier)?;
         self.bump_expect(TokenKind::Colon)?;
         let param_type = self.parse_type()?;
 
         let name = self.get_lexeme(name);
-        Ok(Parameter { name, param_type })
+        Ok(Parameter { name: name.into(), param_type })
     }
 
 
-    pub(super) fn parse_type(&mut self) -> Result<Type, ParseError> {
+    pub(super) fn parse_type(&mut self) -> ParseResult<Type> {
         match self.peek(0).kind {
             TokenKind::Identifier => {
                 let name = self.take();
@@ -101,13 +100,13 @@ impl<'src> Parser<'src> {
     }
 
     // #[inline(always)]
-    pub(super) fn parse_type_tuple(&mut self) -> Result<Type, ParseError> {
+    pub(super) fn parse_type_tuple(&mut self) -> ParseResult<Type> {
         let arguments = self.parse_type_args(TokenKind::OpenParen, TokenKind::CloseParen)?;
         Ok(Type::Tuple(TupleType(arguments)))
     }
 
     // #[inline(always)]
-    pub(super) fn parse_type_list(&mut self) -> Result<Type, ParseError> {
+    pub(super) fn parse_type_list(&mut self) -> ParseResult<Type> {
         self.bump();
 
         let list_type = Box::new(self.parse_type()?);
@@ -117,7 +116,7 @@ impl<'src> Parser<'src> {
     }
 
     // #[inline(always)]
-    pub(super) fn parse_type_fn(&mut self) -> Result<Type, ParseError> {
+    pub(super) fn parse_type_fn(&mut self) -> ParseResult<Type> {
         self.bump();
 
         let arguments = self.parse_type_args(TokenKind::OpenParen, TokenKind::CloseParen)?;
@@ -130,7 +129,7 @@ impl<'src> Parser<'src> {
     }
 
     // See parse_params()
-    pub(super) fn parse_type_args(&mut self, open: TokenKind, close: TokenKind) -> Result<Vec<Type>, ParseError> {
+    pub(super) fn parse_type_args(&mut self, open: TokenKind, close: TokenKind) -> ParseResult<Vec<Type>> {
         self.bump_expect(open)?;
 
         let mut first_type = true;

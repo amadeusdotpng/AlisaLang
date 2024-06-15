@@ -50,6 +50,8 @@ pub enum TokenKind {
 
     // `!`
     Bang,
+    // `~`
+    Tilde,
     // `>`
     Gt,
     // `<`
@@ -77,6 +79,31 @@ pub enum TokenKind {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum OpKind {
+    // `|`
+    Pipe,
+    // `&`
+    And,
+    // `^`
+    Caret,
+    // `>>`
+    ShiftR,
+    // `<<
+    ShiftL,
+
+    // `+`
+    Plus,
+    // `-`
+    Minus,
+    // `*`
+    Star,
+    // `/`
+    FSlash,
+    // `%`
+    Percent,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum LiteralKind {
     Bool,
     Int,
@@ -94,33 +121,6 @@ impl From<lex::LiteralKind> for LiteralKind {
             lex::LiteralKind::Char { terminated }=> Self::Char { terminated },
         }
     }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum OpKind {
-    // `|`
-    Pipe,
-    // `&`
-    And,
-    // `^`
-    Caret,
-    // `~`
-    Tilde,
-    // `>>`
-    ShiftR,
-    // `<<
-    ShiftL,
-
-    // `+`
-    Plus,
-    // `-`
-    Minus,
-    // `*`
-    Star,
-    // `/`
-    FSlash,
-    // `%`
-    Percent,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

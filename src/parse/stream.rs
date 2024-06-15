@@ -237,7 +237,7 @@ impl<'a> StringReader<'a> {
             lex::TokenKind::Pipe => ast_token::TokenKind::Op { kind: OpKind::Pipe },
             lex::TokenKind::And => ast_token::TokenKind::Op { kind: OpKind::And },
             lex::TokenKind::Caret => ast_token::TokenKind::Op { kind: OpKind::Caret },
-            lex::TokenKind::Tilde => ast_token::TokenKind::Op { kind: OpKind::Tilde },
+            lex::TokenKind::Tilde => ast_token::TokenKind::Tilde,
 
             lex::TokenKind::Plus => ast_token::TokenKind::Op { kind: OpKind::Plus },
             lex::TokenKind::Minus => ast_token::TokenKind::Op { kind: OpKind::Minus },
