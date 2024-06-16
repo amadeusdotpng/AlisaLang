@@ -3,7 +3,8 @@ use crate::parse::{Parser, ParseError, ParseResult};
 
 use crate::ast::token::{TokenKind, LiteralKind, OpKind};
 use crate::ast::{Statement, Expression};
-use crate::ast::{ClosureExpression, IfExpression, ElseExpression, BlockExpression, CallExpression};
+use crate::ast::{ClosureExpression, IdentExpression, BlockExpression, CallExpression};
+use crate::ast::{IfExpression, ElseExpression};
 use crate::ast::{LitKind, LiteralExpression};
 use crate::ast::{BinaryExpression, BinaryOperator};
 use crate::ast::{UnaryExpression, UnaryOperator};
@@ -113,12 +114,49 @@ impl<'src> Parser<'src> {
                 Expression::If(Box::new(if_expr))
             }
 
-            // TODO: tuples
             TokenKind::OpenParen => {
                 self.bump();
                 let lhs = self.parse_expr(0)?;
-                self.bump_expect(TokenKind::CloseParen)?;
-                lhs
+
+                const CLOSE: TokenKind = TokenKind::CloseParen;
+
+                if self.bump_check(TokenKind::Comma) {
+                    let mut first_expr = true;
+                    let mut expressions = Vec::new();
+                    expressions.push(lhs);
+
+                    loop {
+                        let (peek_0, peek_1) = (self.peek(0).kind, self.peek(1).kind);
+                        if peek_0 == CLOSE || (peek_1 == CLOSE && !first_expr) { break }
+
+                        if !first_expr { 
+                            self.bump_recover(TokenKind::Comma);
+                        } else { first_expr = false; }
+
+                        let expression = match self.parse_expr(0) {
+                            Ok(expression) => expression,
+                            Err(err) => {
+                                /*
+                                self.recover_error(err);
+                                break
+                                */
+                                return Err(err);
+                            }
+                        };
+
+                        expressions.push(expression);
+                    }
+
+                    self.bump_expect(CLOSE)?;
+
+                    let tuple_expr = LiteralExpression {
+                        kind: LitKind::Tuple(Tuple(expressions))
+                    };
+                    Expression::Literal(tuple_expr)
+                } else {
+                    self.bump_expect(CLOSE)?;
+                    lhs
+                }
             }
 
             TokenKind::OpenBrace => {
@@ -185,7 +223,12 @@ impl<'src> Parser<'src> {
                 Expression::Unary(Box::new(un_expr))
             }
 
-            TokenKind::Identifier => todo!("identifier literals"),
+            TokenKind::Identifier => {
+                self.bump();
+                let name = self.get_lexeme(tok);
+                let ident = IdentExpression { name: name.into() };
+                Expression::Identifier(ident)
+            }
             
             _ => return Err(ParseError::ExpectedNode {
                 expected: "expression".into(),

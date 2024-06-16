@@ -178,7 +178,7 @@ pub struct List(pub Vec<Expression>);
 
 #[derive(Debug)]
 pub struct IdentExpression {
-    name: String,
+    pub name: String,
 }
 
 #[derive(Debug)]
