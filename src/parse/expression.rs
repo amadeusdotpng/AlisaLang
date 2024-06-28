@@ -1,7 +1,7 @@
 use crate::parse::{Parser, ParseError, ParseResult};
 
 
-use crate::ast::token::{TokenKind, LiteralKind, OpKind};
+use crate::ast::token::{T, TokenKind, LiteralKind, OpKind};
 use crate::ast::{Statement, Expression};
 use crate::ast::{ClosureExpression, IdentExpression, BlockExpression, CallExpression};
 use crate::ast::{IfExpression, ElseExpression};
@@ -13,28 +13,28 @@ use crate::ast::{Tuple, List};
 
 fn binop_tok_to_ast(op_kind: TokenKind) -> Option<BinaryOperator> {
     let op = match op_kind {
-        TokenKind::Op { kind: OpKind::Pipe    } => BinaryOperator::BitOr,
-        TokenKind::Op { kind: OpKind::And     } => BinaryOperator::BitAnd,
-        TokenKind::Op { kind: OpKind::Caret   } => BinaryOperator::BitXor,
-        TokenKind::Op { kind: OpKind::ShiftR  } => BinaryOperator::BitRight,
-        TokenKind::Op { kind: OpKind::ShiftL  } => BinaryOperator::BitLeft,
-        TokenKind::Op { kind: OpKind::Plus    } => BinaryOperator::Add,
-        TokenKind::Op { kind: OpKind::Minus   } => BinaryOperator::Sub,
-        TokenKind::Op { kind: OpKind::Star    } => BinaryOperator::Mul,
-        TokenKind::Op { kind: OpKind::FSlash  } => BinaryOperator::Div,
-        TokenKind::Op { kind: OpKind::Percent } => BinaryOperator::Mod,
+        T!("|") => BinaryOperator::BitOr,
+        T!("&") => BinaryOperator::BitAnd,
+        T!("^") => BinaryOperator::BitXor,
+        T!(">>") => BinaryOperator::BitRight,
+        T!("<<") => BinaryOperator::BitLeft,
+        T!("+") => BinaryOperator::Add,
+        T!("-") => BinaryOperator::Sub,
+        T!("*") => BinaryOperator::Mul,
+        T!("/") => BinaryOperator::Div,
+        T!("%") => BinaryOperator::Mod,
 
-        TokenKind::PipePipe => BinaryOperator::BoolOr,
-        TokenKind::AndAnd   => BinaryOperator::BoolAnd,
+        T!("||") => BinaryOperator::BoolOr,
+        T!("&&")   => BinaryOperator::BoolAnd,
 
-        TokenKind::EqEq     => BinaryOperator::Eq,
-        TokenKind::BangEq   => BinaryOperator::Ne,
-        TokenKind::GtEq     => BinaryOperator::Ge,
-        TokenKind::LtEq     => BinaryOperator::Le,
-        TokenKind::Gt       => BinaryOperator::Gt,
-        TokenKind::Lt       => BinaryOperator::Lt,
+        T!("==")     => BinaryOperator::Eq,
+        T!("!=")   => BinaryOperator::Ne,
+        T!(">=")     => BinaryOperator::Ge,
+        T!("<=")     => BinaryOperator::Le,
+        T!(">")       => BinaryOperator::Gt,
+        T!("<")       => BinaryOperator::Lt,
 
-        TokenKind::PipeGt   => BinaryOperator::Pipe,
+        T!("|>")   => BinaryOperator::Pipe,
 
         _ => return None,
     };
@@ -43,11 +43,11 @@ fn binop_tok_to_ast(op_kind: TokenKind) -> Option<BinaryOperator> {
 
 fn unop_tok_to_ast(op_kind: TokenKind) -> Option<UnaryOperator> {
     let op = match op_kind {
-        TokenKind::Op { kind: OpKind::Plus  } => UnaryOperator::Plus,
-        TokenKind::Op { kind: OpKind::Minus } => UnaryOperator::Minus,
+        T!("+") => UnaryOperator::Plus,
+        T!("-") => UnaryOperator::Minus,
 
-        TokenKind::Bang  => UnaryOperator::BoolNot,
-        TokenKind::Tilde => UnaryOperator::BitNot,
+        T!("!")  => UnaryOperator::BoolNot,
+        T!("~") => UnaryOperator::BitNot,
 
         _ => return None,
     };
@@ -104,23 +104,23 @@ impl<'src> Parser<'src> {
                 Expression::Literal(literal)
             }
 
-            TokenKind::BSlash => {
+            T!("\\") => {
                 let closure = self.parse_closure()?;
                 Expression::Closure(Box::new(closure))
             }
 
-            TokenKind::If => {
+            T!("if") => {
                 let if_expr = self.parse_if()?;
                 Expression::If(Box::new(if_expr))
             }
 
-            TokenKind::OpenParen => {
+            T!("(") => {
                 self.bump();
                 let lhs = self.parse_expr(0)?;
 
-                const CLOSE: TokenKind = TokenKind::CloseParen;
+                const CLOSE: TokenKind = T!(")");
 
-                if self.bump_check(TokenKind::Comma) {
+                if self.bump_check(T!(",")) {
                     let mut first_expr = true;
                     let mut expressions = Vec::new();
                     expressions.push(lhs);
@@ -130,7 +130,7 @@ impl<'src> Parser<'src> {
                         if peek_0 == CLOSE || (peek_1 == CLOSE && !first_expr) { break }
 
                         if !first_expr { 
-                            self.bump_recover(TokenKind::Comma);
+                            self.bump_recover(T!(","));
                         } else { first_expr = false; }
 
                         let expression = match self.parse_expr(0) {
@@ -159,25 +159,25 @@ impl<'src> Parser<'src> {
                 }
             }
 
-            TokenKind::OpenBrace => {
+            T!("{") => {
                 let block_expr = Box::new(self.parse_block()?);
                 Expression::Block(block_expr)
             }
 
-            TokenKind::OpenBracket => {
+            T!("{") => {
                 self.bump();
 
                 let mut first_expr = true;
                 let mut expressions = Vec::new();
 
-                const CLOSE: TokenKind = TokenKind::CloseBracket;
+                const CLOSE: TokenKind = T!("}");
 
                 loop {
                     let (peek_0, peek_1) = (self.peek(0).kind, self.peek(1).kind);
                     if peek_0 == CLOSE || (peek_1 == CLOSE && !first_expr) { break }
 
                     if !first_expr { 
-                        self.bump_recover(TokenKind::Comma);
+                        self.bump_recover(T!(","));
                     } else { first_expr = false; }
 
                     let expression = match self.parse_expr(0) {
@@ -201,17 +201,17 @@ impl<'src> Parser<'src> {
 
             kind @
             ( TokenKind::Op { .. }
-            | TokenKind::Bang 
-            | TokenKind::Tilde
+            | T!("!") 
+            | T!("~")
             ) => {
                 self.bump();
                 let op = match unop_tok_to_ast(kind) {
                     Some(op) => op,
                     None => return Err(ParseError::ExpectedAlternatives {
                         expected: Box::new([
-                            TokenKind::Bang, TokenKind::Tilde,
-                            TokenKind::Op { kind: OpKind::Plus },
-                            TokenKind::Op { kind: OpKind::Minus },
+                            T!("!"), T!("~"),
+                            T!("+"),
+                            T!("-"),
                         ]),
                         found: tok,
                     })
@@ -223,7 +223,7 @@ impl<'src> Parser<'src> {
                 Expression::Unary(Box::new(un_expr))
             }
 
-            TokenKind::Identifier => {
+            T!("ID") => {
                 self.bump();
                 let name = self.get_lexeme(tok);
                 let ident = IdentExpression { name: name.into() };
@@ -308,9 +308,9 @@ impl<'src> Parser<'src> {
     pub(super) fn parse_closure(&mut self) -> ParseResult<ClosureExpression> {
         self.bump(); // `\`
 
-        let arguments = self.parse_params(TokenKind::OpenParen, TokenKind::CloseParen)?;
+        let arguments = self.parse_params(T!("("), T!(")"))?;
 
-        self.bump_expect(TokenKind::RArrow)?;
+        self.bump_expect(T!("->"))?;
 
         let return_type = self.parse_type()?;
 
@@ -325,8 +325,8 @@ impl<'src> Parser<'src> {
         let condition = self.parse_expr(0)?;
         let body = self.parse_block()?;
         
-        if self.bump_check(TokenKind::Else) {
-            let else_body = if self.bump_check(TokenKind::If) {
+        if self.bump_check(T!("else")) {
+            let else_body = if self.bump_check(T!("if")) {
                 let else_body = self.parse_if()?;
                 ElseExpression::ElseIf(else_body)
             } else {
@@ -342,11 +342,11 @@ impl<'src> Parser<'src> {
     }
 
     pub(super) fn parse_block(&mut self) -> ParseResult<BlockExpression> {
-        self.bump_expect(TokenKind::OpenBrace)?;
+        self.bump_expect(T!("{"))?;
 
         let mut statements = Vec::new();
         loop {
-            if self.peek(0).kind == TokenKind::CloseBrace { break }
+            if self.peek(0).kind == T!("}") { break }
             match self.parse_statement() {
                 Ok(statement) => statements.push(statement),
                 Err(err) => {
@@ -356,7 +356,7 @@ impl<'src> Parser<'src> {
             }
         }
 
-        self.bump_expect(TokenKind::CloseBrace)?;
+        self.bump_expect(T!("}"))?;
 
         if statements.is_empty() {
             return Ok(BlockExpression { statements, expression: None })
@@ -368,7 +368,7 @@ impl<'src> Parser<'src> {
         }
 
         let expression = match statements.last() {
-            Some(Statement::Expression { expr: _, end_token }) if end_token.kind != TokenKind::Semi => {
+            Some(Statement::Expression { expr: _, end_token }) if end_token.kind != T!(";") => {
                 let expr = statements.pop();
                 let Some(Statement::Expression { expr, .. }) = expr else { unreachable!() };
                 Some(expr)
@@ -381,9 +381,9 @@ impl<'src> Parser<'src> {
 
     fn validate_statement(&mut self, statement: &Statement) {
         if let Statement::Expression { expr: _, end_token } = statement {
-            if end_token.kind == TokenKind::Semi {
+            if end_token.kind == T!(";") {
                 self.recover_error(ParseError::ExpectedSingle {
-                    expected: TokenKind::Semi,
+                    expected: T!(";"),
                     found: *end_token,
                 })
             }
