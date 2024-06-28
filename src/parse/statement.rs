@@ -1,5 +1,6 @@
 use crate::parse::{Parser, ParseError, ParseResult};
 
+use crate::ast::token::T;
 use crate::ast::token::TokenKind;
 use crate::ast::Statement;
 use crate::ast::{FunctionStatement, StructStatement, EnumStatement, LetStatement};
@@ -7,32 +8,32 @@ use crate::ast::{FunctionStatement, StructStatement, EnumStatement, LetStatement
 impl<'src> Parser<'src> {
     pub(super) fn parse_statement(&mut self) -> ParseResult<Statement> {
         match self.peek(0).kind {
-            TokenKind::Fn => {
+            T!("fn") => {
                 let item = self.parse_function()?;
                 Ok(Statement::Function(item))
             }
 
-            TokenKind::Struct => {
+            T!("struct") => {
                 let item = self.parse_struct()?;
                 Ok(Statement::Struct(item))
             }
 
-            TokenKind::Enum => {
+            T!("enum") => {
                 let item = self.parse_enum()?;
                 Ok(Statement::Enum(item))
             }
             
-            TokenKind::Let => {
+            T!("let") => {
                 let item = self.parse_let()?;
                 Ok(Statement::Let(item))
             }
 
-            TokenKind::EOF => Ok(Statement::EOF),
+            T!("EOF") => Ok(Statement::EOF),
 
             _ => match self.parse_expr(0) {
                 Ok(expr) => {
                     let end_token = self.peek(0);
-                    if end_token.kind == TokenKind::Semi { self.bump() };
+                    if end_token.kind == T!(";") { self.bump() };
                     Ok(Statement::Expression { 
                         expr,
                         end_token,
@@ -46,10 +47,10 @@ impl<'src> Parser<'src> {
     pub(super) fn parse_function(&mut self) -> ParseResult<FunctionStatement> {
         self.bump();
 
-        let name = self.take_expect(TokenKind::Identifier)?;
-        let arguments = self.parse_params(TokenKind::OpenParen, TokenKind::CloseParen)?;
+        let name = self.take_expect(T!("ID"))?;
+        let arguments = self.parse_params(T!("("), T!(")"))?;
 
-        self.bump_expect(TokenKind::RArrow)?;
+        self.bump_expect(T!("->"))?;
 
         let return_type = self.parse_type()?;
 
@@ -62,8 +63,8 @@ impl<'src> Parser<'src> {
     pub(super) fn parse_struct(&mut self) -> ParseResult<StructStatement> {
         self.bump();
 
-        let name = self.take_expect(TokenKind::Identifier)?;
-        let fields = self.parse_params(TokenKind::OpenBrace, TokenKind::CloseBrace)?;
+        let name = self.take_expect(T!("ID"))?;
+        let fields = self.parse_params(T!("{"), T!("}"))?;
 
         let name = self.get_lexeme(name);
         Ok(StructStatement { name: name.into(), fields })
@@ -72,27 +73,27 @@ impl<'src> Parser<'src> {
     pub(super) fn parse_enum(&mut self) -> ParseResult<EnumStatement> {
         self.bump();
 
-        let name = self.take_expect(TokenKind::Identifier)?;
-        self.bump_expect(TokenKind::OpenBrace)?;
+        let name = self.take_expect(T!("ID"))?;
+        self.bump_expect(T!("{"))?;
 
         let mut variants = Vec::new();
 
         loop {
             match self.peek(0).kind {
-                TokenKind::Identifier => {
+                T!("ID") => {
                     let variant = self.take();
                     let variant = String::from(self.get_lexeme(variant));
                     variants.push(variant);
                 },
 
-                TokenKind::CloseBrace => {
+                T!("}") => {
                     self.bump();
                     break
                 },
 
                 _ => {
                     let err = ParseError::ExpectedAlternatives {
-                        expected: [TokenKind::Identifier, TokenKind::CloseBrace].into(),
+                        expected: [T!("ID"), T!("}")].into(),
                         found: self.peek(0),
                     };
                     return Err(err);
@@ -100,8 +101,8 @@ impl<'src> Parser<'src> {
             }
         }
 
-        // There is no need to check for `TokenKind::CloseBrace` here since the only way to break
-        // out of the loop is with the parser finding a `TokenKind::CloseBrace` in the loop which
+        // There is no need to check for `T!(CloseBrace)` here since the only way to break
+        // out of the loop is with the parser finding a `T!(CloseBrace)` in the loop which
         // then bumps it.
         let name = self.get_lexeme(name);
         Ok(EnumStatement { name: name.into(), variants })
@@ -110,10 +111,10 @@ impl<'src> Parser<'src> {
     pub(super) fn parse_let(&mut self) -> ParseResult<LetStatement> {
         self.bump();
 
-        let name = self.take_expect(TokenKind::Identifier)?;
-        self.bump_expect(TokenKind::Eq)?;
+        let name = self.take_expect(T!("ID"))?;
+        self.bump_expect(T!("="))?;
         let value = self.parse_expr(0)?;
-        self.bump_expect(TokenKind::Semi)?;
+        self.bump_expect(T!(";"))?;
 
         let name = self.get_lexeme(name);
 
