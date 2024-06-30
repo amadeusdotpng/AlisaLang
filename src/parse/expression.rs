@@ -164,13 +164,13 @@ impl<'src> Parser<'src> {
                 Expression::Block(block_expr)
             }
 
-            T!("{") => {
+            T!("[") => {
                 self.bump();
 
                 let mut first_expr = true;
                 let mut expressions = Vec::new();
 
-                const CLOSE: TokenKind = T!("}");
+                const CLOSE: TokenKind = T!("]");
 
                 loop {
                     let (peek_0, peek_1) = (self.peek(0).kind, self.peek(1).kind);
